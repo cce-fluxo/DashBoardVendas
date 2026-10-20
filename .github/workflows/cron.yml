@@ -1,0 +1,114 @@
+# .github/workflows/cron.yml
+#
+# REDE DE SEGURANÇA. O agendamento de verdade mudou para o pg_cron do Supabase
+# (migration 0007), que dispara nos minutos :07 e :37 com precisão real.
+#
+# Este workflow ficou como reserva, e a frequência foi escolhida com cuidado:
+# a cada 6 HORAS, deliberadamente MAIOR que o limite de frescor do Pipefy
+# (3 horas, em src/lib/auditoria/frescor.ts).
+#
+# O motivo é contraintuitivo. Uma reserva frequente demais seria pior que
+# nenhuma: ela manteria o dado fresco e ESCONDERIA a morte do agendador
+# principal — a auditoria não acusaria nada, o selo da tela continuaria verde, e
+# ninguém descobriria que o pg_cron parou. Com 6 horas, se o pg_cron cair o dado
+# passa dos 3 e o alarme dispara; a reserva só evita que a defasagem vire dias
+# enquanto alguém não olha.
+#
+# A auditoria também confere o agendador PRINCIPAL em separado, por
+# `disparo_recente` — só o pg_net passa por lá, então uma rodada deste workflow
+# não mascara a ausência daquele.
+#
+# HISTÓRICO: com `*/30 * * * *`, em agosto/2026, a mediana entre execuções era de
+# 58 minutos e o máximo de 628. O GitHub documenta que descarta jobs agendados em
+# horário de pico, e :00 é o pior deles.
+
+name: Sincronização de Dados
+
+on:
+  schedule:
+    # Pipefy — reserva a cada 6 horas (o pg_cron cuida do intervalo curto)
+    - cron: "13 */6 * * *"
+    # Sheets — reserva diária, em horário diferente do pg_cron (09:23 UTC)
+    - cron: "47 15 * * *"
+  # Permite rodar manualmente pelo painel do GitHub
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Qual sincronização rodar?"
+        required: true
+        default: "ambos"
+        type: choice
+        options:
+          - pipefy
+          - sheets
+          - ambos
+
+jobs:
+  sync-pipefy:
+    name: Sincronizar Pipefy
+    runs-on: ubuntu-latest
+    # Roda se for o cron de 30min OU se for dispatch manual para pipefy/ambos
+    if: |
+      github.event_name == 'workflow_dispatch' && (inputs.target == 'pipefy' || inputs.target == 'ambos') ||
+      github.event_name == 'schedule' && github.event.schedule == '13 */6 * * *'
+    steps:
+      # O corpo da resposta traz as contagens (inseridos/erros). Descartá-lo,
+      # como fazíamos antes, escondia rodadas que retornavam 200 com zero
+      # registros gravados.
+      - name: Chamar endpoint de sincronização do Pipefy
+        run: |
+          corpo=$(curl -s -w "\n%{http_code}" \
+            -X POST "${{ secrets.VERCEL_URL }}/api/cron/pipefy" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          status=$(echo "$corpo" | tail -n1)
+          json=$(echo "$corpo" | sed '$d')
+
+          echo "Status: $status"
+          # O repositório é público, e o log do Actions também. Só status e
+          # contagens saem aqui; rejeições e avisos podem citar dados reais e
+          # ficam em ingestao_execucao / na tela de Auditoria.
+          echo "Resumo: $(echo "$json" | jq -c '{ok, totais, error}' 2>/dev/null || echo '(resposta não é JSON)')"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Sincronização do Pipefy falhou (HTTP $status)"
+            exit 1
+          fi
+          if echo "$json" | grep -q '"ok":false'; then
+            echo "::error::Pipefy respondeu 200 mas houve erros de gravação — ver contagens acima"
+            exit 1
+          fi
+
+  sync-sheets:
+    name: Sincronizar Sheets
+    runs-on: ubuntu-latest
+    # Roda se for o cron diário OU se for dispatch manual para sheets/ambos
+    if: |
+      github.event_name == 'workflow_dispatch' && (inputs.target == 'sheets' || inputs.target == 'ambos') ||
+      github.event_name == 'schedule' && github.event.schedule == '47 15 * * *'
+    steps:
+      # Ver a nota no job do Pipefy: o corpo carrega inseridos/erros e é o único
+      # lugar onde uma falha de gravação aparece.
+      - name: Chamar endpoint de sincronização do Sheets
+        run: |
+          corpo=$(curl -s -w "\n%{http_code}" \
+            -X POST "${{ secrets.VERCEL_URL }}/api/cron/sheets" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          status=$(echo "$corpo" | tail -n1)
+          json=$(echo "$corpo" | sed '$d')
+
+          echo "Status: $status"
+          # O repositório é público, e o log do Actions também. Só status e
+          # contagens saem aqui; rejeições e avisos podem citar dados reais e
+          # ficam em ingestao_execucao / na tela de Auditoria.
+          echo "Resumo: $(echo "$json" | jq -c '{ok, totais, error}' 2>/dev/null || echo '(resposta não é JSON)')"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Sincronização do Sheets falhou (HTTP $status)"
+            exit 1
+          fi
+          if echo "$json" | grep -q '"ok":false'; then
+            echo "::error::Sheets respondeu 200 mas houve erros de gravação — ver contagens acima"
+            exit 1
+          fi
