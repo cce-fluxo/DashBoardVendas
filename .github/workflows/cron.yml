@@ -57,8 +57,14 @@ jobs:
       # registros gravados.
       - name: Chamar endpoint de sincronização do Pipefy
         run: |
+          # Normaliza a URL: sem barra no fim e sempre https. A Vercel responde
+          # 308 para http:// e para "//api", e o curl não segue redirecionamento
+          # — foi o que derrubou a primeira rodada no repositório novo.
+          base="${{ secrets.VERCEL_URL }}"
+          base="${base%/}"
+          base="https://${base#*://}"
           corpo=$(curl -s -w "\n%{http_code}" \
-            -X POST "${{ secrets.VERCEL_URL }}/api/cron/pipefy" \
+            -X POST "$base/api/cron/pipefy" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json")
           status=$(echo "$corpo" | tail -n1)
@@ -91,8 +97,12 @@ jobs:
       # lugar onde uma falha de gravação aparece.
       - name: Chamar endpoint de sincronização do Sheets
         run: |
+          # Mesma normalização do job do Pipefy.
+          base="${{ secrets.VERCEL_URL }}"
+          base="${base%/}"
+          base="https://${base#*://}"
           corpo=$(curl -s -w "\n%{http_code}" \
-            -X POST "${{ secrets.VERCEL_URL }}/api/cron/sheets" \
+            -X POST "$base/api/cron/sheets" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json")
           status=$(echo "$corpo" | tail -n1)

@@ -69,8 +69,9 @@ select cron.schedule('sync-pipefy', '7,37 * * * *', $$select public.disparar_syn
 
 Workflow **Sincronização de Dados** (`.github/workflows/cron.yml`):
 
-- Chama as mesmas rotas com os secrets `VERCEL_URL` (domínio de produção) e
-  `CRON_SECRET` do repositório.
+- Chama as mesmas rotas com os secrets `VERCEL_URL` (domínio de produção, no
+  formato `https://dominio`, sem barra no fim) e `CRON_SECRET` do repositório.
+  O workflow normaliza a URL, mas o formato certo evita surpresa.
 - Falha o job se a rota devolver HTTP diferente de 200 **ou** `"ok":false` no
   corpo (rodada com erro de gravação).
 - Pode ser disparado à mão: **Actions → Sincronização de Dados → Run workflow**,
