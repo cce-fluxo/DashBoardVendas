@@ -54,7 +54,7 @@ siga também [Mudar uma regra de cálculo](#mudar-uma-regra-de-cálculo).
 A gestão avança sozinha em 1º de outubro, mas **só aparece na tela depois de
 cadastrada no registry**. Até lá, telas e cron usam a gestão mais recente
 cadastrada, e a resposta do cron de planilhas avisa:
-*"A gestão vigente é 26/27, mas não há fonte cadastrada para ela"*.
+*"A gestão vigente é 27/28, mas não há fonte cadastrada para ela"*.
 
 Os cards do Pipefy da gestão nova continuam sendo gravados normalmente; eles só
 aparecem quando a gestão existir no registry.
@@ -72,17 +72,23 @@ aparecem quando a gestão existir no registry.
    blocos da aba de metas.
 4. **Cadastre a gestão** em `src/lib/fontes/registry.ts`, copiando a entrada da
    gestão anterior e ajustando:
-   - `const PLANILHA_2627 = "<spreadsheetId>"`;
-   - os **ciclos** (`CICLOS_2627`): `id`, `rotulo`, `mesInicio`, `mesFim`. Se os
+   - `const PLANILHA_2728 = "<spreadsheetId>"`;
+   - os **ciclos** (`CICLOS_2728`): `id`, `rotulo`, `mesInicio`, `mesFim`. Se os
      nomes ainda não foram revelados, use `rotuloProvisorio: true`;
    - `contratos.colunas`: os nomes de cabeçalho que a inspeção mostrou;
    - `metas`: colunas dos blocos e âncoras (`METAS`, `total`, `GESTÃO`, `Ciclo`);
-   - `observacoes`: qualquer diferença de layout que você notar.
+   - `observacoes`: qualquer diferença de layout que você notar;
+   - o teste de `gestoesDisponiveis` em `src/lib/periodos-disponiveis.test.ts`,
+     que lista as gestões esperadas: inclua a nova no topo.
+
+   Os ciclos sem nome ganham um `id` provisório (em 26/27: `ciclo-2`, `ciclo-3`,
+   `ciclo-4`). O `id` é a chave das metas no banco; trocá-lo depois é seguro
+   enquanto o ciclo não foi congelado.
 5. **Valide:**
 
    ```bash
    npm test
-   npx tsx scripts/verificar-registry.ts --gestao 26/27
+   npx tsx scripts/verificar-registry.ts --gestao 27/28
    ```
 
    Os testes recusam ciclos com buraco ou sobreposição; o `verificar-registry`
@@ -92,7 +98,7 @@ aparecem quando a gestão existir no registry.
    conferir antes de gravar:
 
    ```bash
-   npx tsx scripts/backfill-sheets.ts --gestao 26/27 --simular
+   npx tsx scripts/backfill-sheets.ts --gestao 27/28 --simular
    npx tsx scripts/registrar-cobertura.ts
    ```
 

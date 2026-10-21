@@ -63,12 +63,17 @@ removido ou a pessoa sair, a sincronização do funil para (a idade do dado e a
 Auditoria acusam em até 3 h). Decisão atual: manter por enquanto. Quando trocar,
 gerar com uma conta que não dependa de uma pessoa.
 
-### 🟠 Gestão 26/27 ainda não cadastrada
+### 🟡 Gestão 26/27 ainda incompleta na planilha
 
-A gestão começou em 01/10/2026 e a planilha existe, mas não está no registry. Até
-ser cadastrada, o dashboard mostra 25/26 como padrão, o cron sincroniza a planilha
-de 25/26 e os cards criados a partir de outubro não aparecem em período nenhum.
-Procedimento: [operacao.md](operacao.md#virada-de-gestão).
+Cadastrada em 21/10/2026. Duas coisas dependem da planilha e de acompanhamento:
+
+- **Nomes dos ciclos 2 a 4** ainda são provisórios ("Ciclo 2", "Ciclo 3",
+  "Ciclo 4"). Quando a planilha revelar o nome, a sincronização avisa; atualize
+  o `rotulo` em `src/lib/fontes/registry.ts` e remova `rotuloProvisorio`. Trocar
+  também o `id` só é seguro antes de o ciclo ser congelado.
+- **Metas** só estão preenchidas para outubro e para o Ciclo Gambito, e o bloco
+  GESTÃO está vazio. Até ser preenchido, a meta anual não aparece (e não é
+  inventada somando ciclos que faltam).
 
 ### 🟡 Congelamento de períodos é manual
 

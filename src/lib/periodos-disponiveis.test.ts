@@ -17,6 +17,7 @@ const AGORA = new Date("2026-08-01T12:00:00.000Z");
 describe("gestoesDisponiveis", () => {
 	it("lista as gestões do registry, da mais recente para a mais antiga", () => {
 		expect(gestoesDisponiveis().map((g) => g.valor)).toEqual([
+			"26/27",
 			"25/26",
 			"24/25",
 			"23/24",

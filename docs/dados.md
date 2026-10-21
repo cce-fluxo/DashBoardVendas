@@ -15,7 +15,7 @@ O ano fiscal da Fluxo vai de **1º de outubro a 30 de setembro**. O rótulo `"25
   vigente não tiver planilha cadastrada, telas e cron usam a mais recente que
   tiver, e o cron avisa na resposta. Para cadastrar uma gestão nova, ver
   [operacao.md](operacao.md#virada-de-gestão).
-- Hoje o registry tem **23/24, 24/25 e 25/26**.
+- Hoje o registry tem **23/24, 24/25, 25/26 e 26/27**.
 
 ### Ciclo
 
@@ -27,6 +27,7 @@ trimestres:
 | 23/24 | Fuji (out–jan), Andes (fev–mai), Everest (jun–set) |
 | 24/25 | Waterloo (out–jan), Stalingrado (fev–mai), Normandia (jun–set) |
 | 25/26 | Revolução do Fogo (out–dez), Revolução da Forja (jan–mar), Era Industrial (abr–jun), Apollo (jul–set) |
+| 26/27 | Gambito (out–dez), Ciclo 2 (jan–mar), Ciclo 3 (abr–jun), Ciclo 4 (jul–set). Os nomes dos ciclos 2 a 4 ainda são provisórios |
 
 Os ciclos são declarados no registry (e não lidos da planilha) e validados ao
 carregar: precisam ser contíguos e cobrir os 12 meses (`fontes/calendario.ts`).

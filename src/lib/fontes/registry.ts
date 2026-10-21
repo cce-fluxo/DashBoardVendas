@@ -45,7 +45,7 @@ const OBRIGATORIOS = ["mes", "projeto", "coordenacao"] as const;
 
 // ─── Calendários ──────────────────────────────────────────────────
 //
-// 23/24 e 24/25: 3 ciclos de 4 meses. 25/26: 4 ciclos de 3 meses.
+// 23/24 e 24/25: 3 ciclos de 4 meses. 25/26 e 26/27: 4 ciclos de 3 meses.
 // As datas FIM vieram dos blocos de ciclo da aba "Metas por coordenação".
 
 const CICLOS_2324: Ciclo[] = [
@@ -67,11 +67,24 @@ const CICLOS_2526: Ciclo[] = [
 	{ id: "apollo", rotulo: "Ciclo Apollo", mesInicio: "07", mesFim: "09" },
 ];
 
+// Em 21/10/2026 só o primeiro ciclo tinha nome; os outros três aparecem na
+// planilha como "Ciclo 2", "Ciclo 3" e "Ciclo 4". O `id` é a chave de
+// `meta.periodo`: ao trocar um id provisório pelo nome real, a próxima carga
+// regrava as metas com o id novo e remove as antigas. Isso só é seguro enquanto
+// o ciclo não foi congelado — o snapshot guarda o id da época.
+const CICLOS_2627: Ciclo[] = [
+	{ id: "gambito", rotulo: "Ciclo Gambito", mesInicio: "10", mesFim: "12" },
+	{ id: "ciclo-2", rotulo: "Ciclo 2", mesInicio: "01", mesFim: "03", rotuloProvisorio: true },
+	{ id: "ciclo-3", rotulo: "Ciclo 3", mesInicio: "04", mesFim: "06", rotuloProvisorio: true },
+	{ id: "ciclo-4", rotulo: "Ciclo 4", mesInicio: "07", mesFim: "09", rotuloProvisorio: true },
+];
+
 // ─── Gestões ──────────────────────────────────────────────────────
 
 const PLANILHA_2324 = "13Nav6YnYqkcGT4TOCXSyYHr6ZcY0Rbt6XTBuzi81v6c";
 const PLANILHA_2425 = "1IZbwYwyRhCY7ne8W_plGzLidT0pwuLbUXUMY3c7hZBg";
 const PLANILHA_2526 = "1ssBeBDwghhiQU92-Hl9nkFt4QZ0dRK1wbkrJ6gick4E";
+const PLANILHA_2627 = "1WKWznpWgS2VDKCaLHiBUjfZfJsFnYxR-8_92EC7O9B8";
 
 export const GESTOES: Gestao[] = [
 	{
@@ -236,6 +249,64 @@ export const GESTOES: Gestao[] = [
 		observacoes: [
 			"Em 'Contratos', a ordem das duas colunas de data é invertida em relação a 24/25 (finalização antes de assinatura). O casamento por nome resolve.",
 			"No bloco METAS da aba 'Metas por coordenação', os rótulos de mês estão DESATUALIZADOS ('outubro/2024'..'setembro/2025' numa planilha de 25/26). Os valores estão certos — a soma bate com a meta de gestão. Nunca derivar o ano do rótulo.",
+		],
+	},
+
+	// Conferida em 21/10/2026 com `npx tsx scripts/inspecionar-planilha.ts`:
+	// mesmos cabeçalhos de 'Contratos' e mesmo layout de blocos de 25/26.
+	{
+		id: "26/27",
+		anoInicio: 2026,
+		ciclos: CICLOS_2627,
+		contratos: {
+			estrategia: "tabela",
+			spreadsheetId: PLANILHA_2627,
+			aba: "Contratos",
+			linhaCabecalho: 1,
+			colunas: {
+				mes: COLUNA_MES,
+				projeto: { tipo: "cabecalho", nome: "Projetos Assinados" },
+				contratante: { tipo: "cabecalho", nome: "Contratante" },
+				responsavel1: { tipo: "cabecalho", nome: "Responsável 1" },
+				responsavel2: { tipo: "cabecalho", nome: "Responsável 2" },
+				responsavel3: { tipo: "cabecalho", nome: "Responsável 3" },
+				responsavel4: { tipo: "cabecalho", nome: "Responsável 4" },
+				assinado: { tipo: "cabecalho", nome: "Assinado" },
+				coordenacao: { tipo: "cabecalho", nome: "Coordenação" },
+				itemDaCarta: { tipo: "cabecalho", nome: "Item da Carta" },
+				prazo: { tipo: "cabecalho", nome: "Prazo" },
+				valorVendidoReal: { tipo: "cabecalho", nome: "Valor Vendido real" },
+				dataEntrega: {
+					tipo: "cabecalho",
+					nome: "Data de Finalização (Estimativa)",
+				},
+				dataAssinatura: {
+					tipo: "cabecalho",
+					nome: "Data de Assinatura de contrato",
+				},
+				valorContrato: { tipo: "cabecalho", nome: "Valor contrato" },
+				precoPorSemana: { tipo: "cabecalho", nome: "Preço por Semana" },
+				numeroParcelas: { tipo: "cabecalho", nome: "N° Parcelas" },
+				canalAquisicao: { tipo: "cabecalho", nome: "Canal de aquisição" },
+				fidelizacao: { tipo: "cabecalho", nome: "Fidelização?" },
+				compiladoNoPortal: { tipo: "cabecalho", nome: "Compilado no Portal" },
+			},
+			obrigatorios: [...OBRIGATORIOS],
+		},
+		metas: {
+			estrategia: "blocos",
+			spreadsheetId: PLANILHA_2627,
+			aba: "Metas por coordenação",
+			colunaBlocosB: 1, // B
+			colunaBlocosCiclo: 4, // E
+			ancoraMensal: "METAS",
+			ancoraFimMensal: "total",
+			ancoraGestao: "GESTÃO",
+			prefixoCiclo: "Ciclo",
+		},
+		observacoes: [
+			"Diferente de 25/26, os rótulos de mês do bloco METAS já estão no ano certo (outubro/2026..setembro/2027). A regra de não derivar o ano do rótulo continua valendo.",
+			"A aba 'Metas por coordenação' tem, à direita (colunas K em diante), tabelas de gestões antigas (15/16 a 20/21). Ficam fora das colunas B e E e não são lidas.",
 		],
 	},
 ];
