@@ -8,6 +8,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { buscarCardsComHistorico } from "@/lib/supabase-funil";
 import { calcularComparativoFunilPeriodos } from "@/lib/calculations-funil";
 import { SelecaoPeriodoFunil, PeriodoGestao, PeriodoCiclo } from "@/types";
+import {
+	cacheado,
+	ehLeituraVazia,
+	exigirLeitura,
+	respostaLeituraVazia,
+} from "@/lib/cache";
 
 function lerSelecao(
 	params: URLSearchParams,
@@ -30,6 +36,16 @@ function lerSelecao(
 	};
 }
 
+/** Uma entrada por par de períodos e modo de janela. Ver src/lib/cache.ts. */
+const calcularComparativo = cacheado(
+	"api-comparador-funil",
+	async (selA: SelecaoPeriodoFunil, selB: SelecaoPeriodoFunil, equalizar: boolean) => {
+		const cards = await buscarCardsComHistorico();
+		exigirLeitura({ cards });
+		return calcularComparativoFunilPeriodos(cards, selA, selB, { equalizar });
+	},
+);
+
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
@@ -47,13 +63,11 @@ export async function GET(request: NextRequest) {
 		// equalizar=false desliga a janela equalizada; default é ligada.
 		const equalizar = searchParams.get("equalizar") !== "false";
 
-		const cards = await buscarCardsComHistorico();
-		const comparativo = calcularComparativoFunilPeriodos(cards, selA, selB, {
-			equalizar,
-		});
+		const comparativo = await calcularComparativo(selA, selB, equalizar);
 
 		return NextResponse.json(comparativo);
 	} catch (error) {
+		if (ehLeituraVazia(error)) return respostaLeituraVazia(error);
 		console.error("[API Comparador Funil]", error);
 		return NextResponse.json(
 			{ message: "Erro interno ao calcular o comparador de funil" },

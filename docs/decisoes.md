@@ -46,11 +46,22 @@ topo dos arquivos também explicam a história de cada módulo.
 
 | Decisão | Por quê |
 |---|---|
+| **Funções da Vercel na mesma região do banco** (`pdx1`, ao lado do Supabase em `us-west-2`) | Cada tela faz cerca de 10 consultas em sequência. Com as funções em `iad1` (Virgínia) e o banco no Oregon, cada uma atravessava os EUA: as rotas levavam 1,3–1,6 s. Na mesma região, 0,7–0,9 s (medido em 21/10/2026). Se o banco mudar de região, mude a das funções junto (Vercel → Settings → Functions) |
 | **`pg_cron` no Supabase como agendador principal** | O agendamento do GitHub Actions atrasa e descarta execuções: em agosto de 2026, 64% das rodadas a cada 30 min nunca aconteceram |
 | **GitHub Actions como reserva a cada 6 h** | Reserva frequente esconderia a queda do principal. Com 6 h contra limite de frescor de 3 h, o alarme dispara mesmo com a reserva rodando |
 | **Segredos do agendador no Vault, não na migration** | Migration é versionada no git |
 | **Botão Atualizar vai à fonte, sem segredo, com cooldown** | Antes ele só relia o banco e mostrava o mesmo número. O navegador não tem onde guardar segredo; a trava de 60 s protege a cota |
 | **Idade do dado no cabeçalho** | A tela dizia "atualizado agora" com o agendador parado havia 10 horas. Não dá para garantir a carga; dá para garantir que a tela não minta sobre ela |
+
+## Leitura
+
+| Decisão | Por quê |
+|---|---|
+| **Cache da resposta pronta de cada rota, não dos dados crus** | Os dados só mudam quando uma sincronização roda, mas cada tela relia ~3 mil cards (1,5 MB) e todas as vendas. Os cards crescem a cada gestão e ficariam perto do limite de um item de cache; as respostas têm de 5 a 25 KB. Medido em 21/10/2026: 0,7–2 s sem cache, dezenas de milissegundos com |
+| **`unstable_cache`, não `'use cache'`** | `'use cache'` exige ligar o modo Cache Components, que muda o modelo de renderização do app inteiro, e o armazenamento padrão dele é em memória, que numa função serverless não sobrevive entre requisições |
+| **Invalidação com `expire: 0` ao fim de cada sincronização** | Quem clica em Atualizar quer ver o efeito do clique, não o dado anterior enquanto o novo é calculado |
+| **Idade do dado fora do cache** | Guardada, ela congelaria justamente o alarme de que o agendador parou |
+| **Leitura vazia vira 503, não zero** | As funções de leitura devolvem lista vazia quando a consulta falha. Com cache, os zeros ficariam guardados por meia hora; um erro visível não é guardado e se resolve no próximo acesso |
 
 ## Cálculo
 

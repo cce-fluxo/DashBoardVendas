@@ -155,6 +155,24 @@ Cada tela chama a rota da sua área:
 **Tudo segue o seletor de período** do topo da tela. A única exceção é o
 Comparador periódico de funil, que por definição escolhe dois períodos próprios.
 
+### Cache das respostas
+
+As rotas de leitura (`/api/dashboard`, `/funil`, `/comparador-fases`,
+`/comparador-funil` e `/origem`) guardam a **resposta pronta** de cada combinação
+de parâmetros (`src/lib/cache.ts`). A primeira abertura de um período lê o banco
+(~1 s); as seguintes saem do cache (dezenas de milissegundos).
+
+- **Invalidação:** toda sincronização descarta o cache ao terminar, inclusive
+  com erro: `/api/cron/pipefy`, `/api/cron/sheets` e o botão Atualizar. O botão
+  invalida **sempre**, mesmo quando o cooldown impede a carga.
+- **Validade máxima de 30 min**, para o que escreve no banco por fora do Next
+  (scripts de backfill e de congelamento) e para valores que dependem da data.
+- **A idade do dado fica fora do cache**, medida a cada requisição.
+- **Leitura vazia não é guardada:** se o banco falhar, a rota responde 503 e a
+  tela mostra erro, em vez de zeros guardados por meia hora.
+- A Auditoria (`/api/dashboard/auditoria`) **não** tem cache: é diagnóstico e
+  precisa mostrar o estado de agora.
+
 ## Infraestrutura e contas
 
 ```mermaid
@@ -176,8 +194,8 @@ flowchart TB
 | Serviço      | Papel                                                                     | Observação                                                        |
 | ------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | GitHub       | Código, agendador reserva (Actions), secrets `VERCEL_URL` e `CRON_SECRET` | Push na `main` publica em produção; outras branches geram preview |
-| Vercel       | Hospeda telas e rotas; guarda as variáveis de ambiente                    | Plano Hobby — ver [pendencias.md](pendencias.md)                  |
-| Supabase     | Banco, agendador principal (`pg_cron`), segredos do agendador (Vault)     | RLS ligado; o servidor usa a `service_role`, que ignora RLS       |
+| Vercel       | Hospeda telas e rotas; guarda as variáveis de ambiente                    | Plano Hobby — ver [pendencias.md](pendencias.md). Funções em **`pdx1`** (Portland), mesma região do banco |
+| Supabase     | Banco, agendador principal (`pg_cron`), segredos do agendador (Vault)     | Região **`us-west-2`** (Oregon). RLS ligado; o servidor usa a `service_role`, que ignora RLS |
 | Google Cloud | Conta de serviço com acesso de leitura às planilhas                       | As planilhas precisam estar compartilhadas com o e-mail dela      |
 | Pipefy       | Token de API usado na sincronização do funil                              | Token pessoal: depende do acesso de quem o gerou                  |
 

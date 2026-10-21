@@ -14,6 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import { sincronizarPipefy } from "@/lib/sync-pipefy";
 import { sincronizarSheets } from "@/lib/sync-sheets";
 import { decidirDisparo, type ExecucaoResumida } from "@/lib/ingestao/disparo-manual";
+import { invalidarDados } from "@/lib/cache";
 
 /**
  * Teto de execução. Pipefy incremental tem p90 de 7s e a planilha fecha em ~6s
@@ -96,5 +97,10 @@ export async function POST() {
 			{ estado: "erro", mensagem: "Não foi possível atualizar agora." },
 			{ status: 500 },
 		);
+	} finally {
+		// SEMPRE, inclusive quando o cooldown impediu a sincronização: o clique
+		// também é o jeito de ver o que um script (backfill, congelamento)
+		// acabou de gravar no banco sem passar pelo Next. Ver src/lib/cache.ts.
+		invalidarDados();
 	}
 }

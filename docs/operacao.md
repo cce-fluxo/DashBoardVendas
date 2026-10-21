@@ -120,7 +120,8 @@ npx tsx scripts/congelar-periodos.ts --gravar  # grava
 Um período só fica liberado quando o mês seguinte ao fim dele termina. Exemplo:
 a gestão 25/26 e o Ciclo Apollo (fim em 30/09/2026) ficam liberados a partir de
 01/11/2026. O script é idempotente: rodar de novo não cria nada se nada novo
-fechou.
+fechou. Depois de gravar, clique em **Atualizar** no dashboard para as telas
+mostrarem o selo de congelado na hora (o script não consegue limpar o cache).
 
 **Congelado não se refaz.** A tabela recusa UPDATE. Se a planilha de um período
 congelado for corrigida, a tela mostra "divergente da fonte", mas o número
@@ -149,7 +150,8 @@ npx tsx scripts/backfill-pipefy.ts             # todos os pipes (~40 min)
 
 `--limpar` **apaga** os dados antes de recarregar. Só use se tiver certeza, e
 nunca em `snapshot_periodo` (os backfills não mexem nela). Os dois backfills já
-regravam a cobertura no final.
+regravam a cobertura no final. Depois, clique em **Atualizar** para as telas
+descartarem o cache (ou espere até 30 min).
 
 ## Fase ou campo novo no Pipefy
 

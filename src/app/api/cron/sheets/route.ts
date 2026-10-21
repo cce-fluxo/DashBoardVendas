@@ -5,6 +5,7 @@
 // Protegido por CRON_SECRET para evitar chamadas não autorizadas.
 
 import { NextRequest, NextResponse } from "next/server";
+import { invalidarDados } from "@/lib/cache";
 import { sincronizarSheets } from "@/lib/sync-sheets";
 
 /**
@@ -57,5 +58,9 @@ export async function POST(req: NextRequest) {
 			{ ok: false, error: "Erro interno", detalhe: mensagem },
 			{ status: 500 },
 		);
+	} finally {
+		// Mesmo com erro: parte da carga pode ter sido gravada. As rotas de
+		// leitura passam a recalcular a partir do banco. Ver src/lib/cache.ts.
+		invalidarDados();
 	}
 }

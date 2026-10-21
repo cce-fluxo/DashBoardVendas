@@ -137,6 +137,7 @@ adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.t
 |---|---|
 | `supabase-vendas.ts` | Lê vendas (com vendedores) e metas do banco |
 | `supabase-funil.ts` | Lê cards com o histórico de fases, paginado e ordenado |
+| `cache.ts` | Cache das respostas das rotas de leitura e invalidação ao fim das sincronizações |
 
 ### Ingestão
 
@@ -177,7 +178,7 @@ adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.t
 
 ### Testes
 
-Ficam ao lado do código (`*.test.ts`), 14 arquivos. Rodam sem rede e sem banco:
+Ficam ao lado do código (`*.test.ts`), 15 arquivos. Rodam sem rede e sem banco:
 `npm test`.
 
 ## `scripts/` — ferramentas de linha de comando

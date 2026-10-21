@@ -5,6 +5,7 @@
 // Protegido por CRON_SECRET para evitar chamadas não autorizadas.
 
 import { NextRequest, NextResponse } from "next/server";
+import { invalidarDados } from "@/lib/cache";
 import { sincronizarPipefy } from "@/lib/sync-pipefy";
 
 /**
@@ -44,5 +45,9 @@ export async function POST(req: NextRequest) {
 	} catch (err) {
 		console.error("[Cron Pipefy] Erro:", err);
 		return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+	} finally {
+		// Mesmo com erro: parte da carga pode ter sido gravada. As rotas de
+		// leitura passam a recalcular a partir do banco. Ver src/lib/cache.ts.
+		invalidarDados();
 	}
 }

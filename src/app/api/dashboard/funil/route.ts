@@ -15,11 +15,31 @@ import {
 } from "@/lib/calculations-funil";
 import { gestaoAtual } from "@/lib/periodo-gestao";
 import {
+	cacheado,
+	ehLeituraVazia,
+	exigirLeitura,
+	respostaLeituraVazia,
+} from "@/lib/cache";
+import {
 	Coordenacao,
 	PeriodoCiclo,
 	PeriodoGestao,
 	SelecaoPeriodoFunil,
 } from "@/types";
+
+/** Uma entrada por período e recorte de coordenações. Ver src/lib/cache.ts. */
+const calcularFunil = cacheado(
+	"api-funil",
+	async (sel: SelecaoPeriodoFunil, coordenacoes: Coordenacao[]) => {
+		const todos = await buscarCardsComHistorico();
+		exigirLeitura({ cards: todos });
+		const cards = filtrarCardsPorCoordenacoes(todos, coordenacoes);
+		return {
+			funil: calcularKPIsFunilCompleto(cards, sel),
+			entradaDireta: calcularEntradaDireta(cards, sel),
+		};
+	},
+);
 
 export async function GET(request: NextRequest) {
 	try {
@@ -39,18 +59,21 @@ export async function GET(request: NextRequest) {
 		const coordenacoes = (searchParams.get("coordenacoes") ?? "")
 			.split(",")
 			.map((c) => c.trim())
-			.filter(Boolean) as Coordenacao[];
+			.filter(Boolean)
+			// Ordenadas: "CCE,ACE" e "ACE,CCE" são o mesmo recorte e devem
+			// cair na mesma entrada do cache.
+			.sort() as Coordenacao[];
 
-		const todos = await buscarCardsComHistorico();
-		const cards = filtrarCardsPorCoordenacoes(todos, coordenacoes);
+		const { funil, entradaDireta } = await calcularFunil(sel, coordenacoes);
 
 		return NextResponse.json({
-			funil: calcularKPIsFunilCompleto(cards, sel),
-			entradaDireta: calcularEntradaDireta(cards, sel),
+			funil,
+			entradaDireta,
 			periodo: sel,
 			coordenacoes,
 		});
 	} catch (error) {
+		if (ehLeituraVazia(error)) return respostaLeituraVazia(error);
 		console.error("[API Funil]", error);
 		return NextResponse.json(
 			{ message: "Erro interno ao processar os dados do funil" },

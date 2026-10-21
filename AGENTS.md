@@ -22,6 +22,9 @@ erro:
   do servidor.
 - **Leitura do Supabase pagina e ordena** (`.range()` + `.order()` pela chave
   primária); o limite é 1.000 linhas por consulta.
+- **Rotas de leitura têm cache** (`src/lib/cache.ts`). Rota nova que lê o banco
+  usa `cacheado()` e `exigirLeitura()`; código novo que escreve no banco pelo
+  Next chama `invalidarDados()` ao terminar.
 - **Nenhum descarte silencioso:** dado que não entra grava motivo em
   `ingestao_rejeicao` (`src/lib/ingestao/registro.ts`).
 - **Comentários no topo dos arquivos** registram o erro que motivou cada decisão.

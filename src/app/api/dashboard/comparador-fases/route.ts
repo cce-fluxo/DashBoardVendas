@@ -9,11 +9,27 @@ import { buscarCardsComHistorico } from "@/lib/supabase-funil";
 import { calcularComparadorFases } from "@/lib/calculations-funil";
 import { gestaoAtual } from "@/lib/periodo-gestao";
 import {
+	cacheado,
+	ehLeituraVazia,
+	exigirLeitura,
+	respostaLeituraVazia,
+} from "@/lib/cache";
+import {
 	EtapaFunil,
 	PeriodoCiclo,
 	PeriodoGestao,
 	SelecaoPeriodoFunil,
 } from "@/types";
+
+/** Uma entrada por par de etapas e período. Ver src/lib/cache.ts. */
+const calcularComparador = cacheado(
+	"api-comparador-fases",
+	async (etapaDe: EtapaFunil, etapaPara: EtapaFunil, sel: SelecaoPeriodoFunil) => {
+		const cards = await buscarCardsComHistorico();
+		exigirLeitura({ cards });
+		return calcularComparadorFases(cards, etapaDe, etapaPara, sel);
+	},
+);
 
 export async function GET(request: NextRequest) {
 	try {
@@ -39,11 +55,11 @@ export async function GET(request: NextRequest) {
 			mes: searchParams.get("mes") ?? undefined,
 		};
 
-		const cards = await buscarCardsComHistorico();
-		const resultado = calcularComparadorFases(cards, etapaDe, etapaPara, sel);
+		const resultado = await calcularComparador(etapaDe, etapaPara, sel);
 
 		return NextResponse.json(resultado);
 	} catch (error) {
+		if (ehLeituraVazia(error)) return respostaLeituraVazia(error);
 		console.error("[API Comparador Fases]", error);
 		return NextResponse.json(
 			{ message: "Erro interno ao calcular comparador de fases" },

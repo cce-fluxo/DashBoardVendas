@@ -98,7 +98,9 @@ na hora, do navegador, sem segredo. A proteção é a trava em
   disso ela é considerada pendurada e liberada);
 - nunca varre fases terminais nem força reescrita.
 
-Uma rodada típica leva cerca de 10 s.
+Uma rodada típica leva cerca de 10 s. Ao final, o botão **sempre** descarta o
+cache das telas (`src/lib/cache.ts`), inclusive quando o cooldown impediu a
+carga — é também o jeito de ver na hora o que um script gravou no banco.
 
 ## Onde está cada segredo
 
@@ -142,3 +144,5 @@ Como trocar cada um com segurança: [operacao.md](operacao.md#trocar-um-segredo)
 | Execução `falhou` nas planilhas com erro de coluna | Cabeçalho renomeado ou removido na planilha | Corrigir a planilha ou o registry |
 | Aviso "não há fonte cadastrada para a gestão vigente" | Virada de gestão sem planilha nova no registry | [Virada de gestão](operacao.md#virada-de-gestão) |
 | Rejeição "fase ausente do MapaPipe" | Fase nova ou renomeada no Pipefy | Atualizar `src/lib/fontes/pipes.ts` |
+| Tela não mostra o que um script acabou de gravar | O cache das telas só é descartado por sincronizações do Next; scripts rodam por fora | Clicar em **Atualizar** (ou esperar até 30 min) |
+| Tela com erro "O banco não respondeu agora" (503) | Uma leitura do banco voltou vazia — quase sempre falha momentânea | Recarregar; se persistir, ver o status do Supabase |
