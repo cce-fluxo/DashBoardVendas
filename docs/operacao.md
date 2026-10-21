@@ -176,7 +176,7 @@ Depois de trocar qualquer variável na Vercel, faça **Redeploy**.
 | `GOOGLE_PRIVATE_KEY` | Google Cloud → IAM → Contas de serviço → Chaves → Adicionar chave (JSON) | Vercel e `.env.local` (valor de `private_key` do JSON) | `npx tsx scripts/verificar-registry.ts` e Atualizar. **Depois exclua a chave antiga** no Google Cloud |
 | `PIPEFY_TOKEN` | Pipefy → configurações da conta → Personal access tokens | Vercel e `.env.local` | Atualizar; Auditoria mostra carga do Pipefy sem erro |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API keys | Vercel e `.env.local` | Abrir o dashboard; `npx tsx scripts/auditar-banco.ts` |
-| Domínio de produção | Vercel → Domains | Vault `app_base_url`, secret `VERCEL_URL` do GitHub e `DASHBOARD_URL` no `.env.local` | `select public.url_do_disparo('pipefy');` |
+| Domínio de produção | Vercel → Domains | Vault `app_base_url` e secret `VERCEL_URL` do GitHub | `select public.url_do_disparo('pipefy');` |
 
 ## Aplicar uma migration
 
@@ -192,12 +192,16 @@ Depois de trocar qualquer variável na Vercel, faça **Redeploy**.
 Para mudanças que alteram números já exibidos (base do funil, definição de
 venda, regra de meta):
 
-1. **Antes**, fotografe a produção:
-   `npx tsx scripts/capturar-linha-de-base.ts --url <URL de produção>` (grava em
-   `anexos/`, fora do git).
-2. Faça a mudança, com testes.
-3. **Depois**, compare: `npx tsx scripts/comparar-com-linha-de-base.ts`. Toda
-   diferença precisa ser explicada pela mudança.
+1. Faça a mudança numa branch, com testes que descrevam a regra nova.
+2. **Compare lado a lado** produção e o deploy de preview da branch. Os dois leem
+   o mesmo banco, então qualquer diferença vem só do código. Abra o mesmo
+   período nos dois (ou chame `/api/dashboard?tipo=...&gestao=...` em cada um) e
+   confira os números afetados. Toda diferença precisa ser explicada pela
+   mudança. O preview exige login na Vercel com a conta do dashboard (Standard
+   Protection).
+3. Para períodos **congelados**, a tela de preview passa a mostrar "divergente da
+   fonte" se a regra nova der outro resultado; é o esperado, e o número
+   congelado não muda.
 4. Se a mudança afeta métricas congeladas, suba `VERSAO_CALCULO` em
    `src/lib/snapshots/metricas.ts` e registre o motivo no histórico do comentário.
 5. Registre a decisão em [decisoes.md](decisoes.md).

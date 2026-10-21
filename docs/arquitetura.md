@@ -71,11 +71,11 @@ flowchart LR
   A -- "ingestão<br/>(sync-*.ts)" --> B -- "cálculo<br/>(calculations*.ts)" --> C
 ```
 
-| Camada | Onde vive | O que garante |
-|---|---|---|
+| Camada                 | Onde vive                                                             | O que garante                                                                                                                                                              |
+| ---------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Fonte bruta → canônico | `src/lib/sync-pipefy.ts`, `src/lib/sync-sheets.ts`, `src/lib/fontes/` | Nenhum descarte silencioso: toda linha que não vira dado grava um motivo em `ingestao_rejeicao`. Cada linha gravada aponta para a célula ou card de origem (`origem_ref`). |
-| Canônico → métricas | `src/lib/calculations.ts`, `src/lib/calculations-funil.ts` | Funções puras, sem rede, cobertas por testes. A mesma regra serve à tela e ao congelamento. |
-| Métricas congeladas | `src/lib/snapshots/`, tabela `snapshot_periodo` | Período fechado tem memória: corrigir a planilha depois não muda, em silêncio, um número já reportado. |
+| Canônico → métricas    | `src/lib/calculations.ts`, `src/lib/calculations-funil.ts`            | Funções puras, sem rede, cobertas por testes. A mesma regra serve à tela e ao congelamento.                                                                                |
+| Métricas congeladas    | `src/lib/snapshots/`, tabela `snapshot_periodo`                       | Período fechado tem memória: corrigir a planilha depois não muda, em silêncio, um número já reportado.                                                                     |
 
 ## Fluxo de ingestão (sincronização)
 
@@ -111,12 +111,12 @@ coordenação** como blocos, grava `projeto_vendido` e `meta` e apaga o que sumi
 da planilha **só na gestão que acabou de ser lida** (e nunca quando a leitura
 volta vazia).
 
-| Disparo | Quem | Frequência | Escopo |
-|---|---|---|---|
-| Principal | `pg_cron` no Supabase | Pipefy `7,37 * * * *` · Planilhas `23 9 * * *` (06:23 em Brasília) | Pipes ativos, fases não terminais, só cards alterados · Gestão vigente |
-| Reserva | GitHub Actions (`.github/workflows/cron.yml`) | Pipefy a cada 6 h · Planilhas 1×/dia às 15:47 UTC | Igual ao principal |
-| Manual | Botão **Atualizar** → `POST /api/dashboard/atualizar` | Sob demanda, com trava de 60 s | Igual ao principal, sem segredo |
-| Carga completa | `scripts/backfill-*.ts`, à mão | Quando precisa reparar | Todos os pipes e todas as gestões |
+| Disparo        | Quem                                                  | Frequência                                                         | Escopo                                                                 |
+| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Principal      | `pg_cron` no Supabase                                 | Pipefy `7,37 * * * *` · Planilhas `23 9 * * *` (06:23 em Brasília) | Pipes ativos, fases não terminais, só cards alterados · Gestão vigente |
+| Reserva        | GitHub Actions (`.github/workflows/cron.yml`)         | Pipefy a cada 6 h · Planilhas 1×/dia às 15:47 UTC                  | Igual ao principal                                                     |
+| Manual         | Botão **Atualizar** → `POST /api/dashboard/atualizar` | Sob demanda, com trava de 60 s                                     | Igual ao principal, sem segredo                                        |
+| Carga completa | `scripts/backfill-*.ts`, à mão                        | Quando precisa reparar                                             | Todos os pipes e todas as gestões                                      |
 
 Detalhes, segredos e diagnóstico de falha: [automacoes.md](automacoes.md).
 
@@ -144,13 +144,13 @@ sequenceDiagram
 
 Cada tela chama a rota da sua área:
 
-| Tela | Rotas |
-|---|---|
-| `/dashboard` (Visão geral) | `/api/dashboard`, `/api/dashboard/funil` |
-| `/dashboard/funil` | `/api/dashboard`, `/api/dashboard/funil`, `/api/dashboard/comparador-fases`, `/api/dashboard/comparador-funil` |
-| `/dashboard/vendedores`, `/dashboard/metas` | `/api/dashboard` |
-| `/dashboard/auditoria` | `/api/dashboard/auditoria`, `/api/dashboard/origem` (via "Conferir um número") |
-| Todas | `POST /api/dashboard/atualizar` (botão Atualizar) |
+| Tela                                        | Rotas                                                                                                          |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `/dashboard` (Visão geral)                  | `/api/dashboard`, `/api/dashboard/funil`                                                                       |
+| `/dashboard/funil`                          | `/api/dashboard`, `/api/dashboard/funil`, `/api/dashboard/comparador-fases`, `/api/dashboard/comparador-funil` |
+| `/dashboard/vendedores`, `/dashboard/metas` | `/api/dashboard`                                                                                               |
+| `/dashboard/auditoria`                      | `/api/dashboard/auditoria`, `/api/dashboard/origem` (via "Conferir um número")                                 |
+| Todas                                       | `POST /api/dashboard/atualizar` (botão Atualizar)                                                              |
 
 **Tudo segue o seletor de período** do topo da tela. A única exceção é o
 Comparador periódico de funil, que por definição escolhe dois períodos próprios.
@@ -173,25 +173,25 @@ flowchart TB
   V -- "PIPEFY_TOKEN" --> PT
 ```
 
-| Serviço | Papel | Observação |
-|---|---|---|
-| GitHub | Código, agendador reserva (Actions), secrets `VERCEL_URL` e `CRON_SECRET` | Push na `main` publica em produção; outras branches geram preview |
-| Vercel | Hospeda telas e rotas; guarda as variáveis de ambiente | Plano Hobby — ver [pendencias.md](pendencias.md) |
-| Supabase | Banco, agendador principal (`pg_cron`), segredos do agendador (Vault) | RLS ligado; o servidor usa a `service_role`, que ignora RLS |
-| Google Cloud | Conta de serviço com acesso de leitura às planilhas | As planilhas precisam estar compartilhadas com o e-mail dela |
-| Pipefy | Token de API usado na sincronização do funil | Token pessoal: depende do acesso de quem o gerou |
+| Serviço      | Papel                                                                     | Observação                                                        |
+| ------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| GitHub       | Código, agendador reserva (Actions), secrets `VERCEL_URL` e `CRON_SECRET` | Push na `main` publica em produção; outras branches geram preview |
+| Vercel       | Hospeda telas e rotas; guarda as variáveis de ambiente                    | Plano Hobby — ver [pendencias.md](pendencias.md)                  |
+| Supabase     | Banco, agendador principal (`pg_cron`), segredos do agendador (Vault)     | RLS ligado; o servidor usa a `service_role`, que ignora RLS       |
+| Google Cloud | Conta de serviço com acesso de leitura às planilhas                       | As planilhas precisam estar compartilhadas com o e-mail dela      |
+| Pipefy       | Token de API usado na sincronização do funil                              | Token pessoal: depende do acesso de quem o gerou                  |
 
 Nenhuma credencial chega ao navegador: não existe variável `NEXT_PUBLIC_*`, e
 todas as rotas que falam com o banco rodam no servidor.
 
 ## Stack
 
-| Parte | Tecnologia | Atenção |
-|---|---|---|
-| Framework | Next.js 16 (App Router, Turbopack) | Versão com mudanças incompatíveis em relação ao que muita gente (e muita IA) conhece. Antes de mexer em convenção do framework, ler `node_modules/next/dist/docs/` |
-| UI | React 19, Tailwind 4, componentes shadcn (`src/components/ui/`), Recharts 3, `next-themes` | shadcn usa o pacote único `radix-ui`; o CLI `shadcn` só é necessário para adicionar componentes |
-| Banco | Supabase (Postgres) com `pg_cron`, `pg_net` e Vault | Migrations em `supabase/migrations/`, aplicadas à mão no SQL Editor |
-| Integrações | `googleapis` (Sheets, somente leitura), `fetch` na API GraphQL do Pipefy | |
-| Qualidade | TypeScript, ESLint, Vitest, Knip | `npm run typecheck`, `npm run lint`, `npm test`, `npm run knip` |
+| Parte       | Tecnologia                                                                                 | Atenção                                                                                                                                                            |
+| ----------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Framework   | Next.js 16 (App Router, Turbopack)                                                         | Versão com mudanças incompatíveis em relação ao que muita gente (e muita IA) conhece. Antes de mexer em convenção do framework, ler `node_modules/next/dist/docs/` |
+| UI          | React 19, Tailwind 4, componentes shadcn (`src/components/ui/`), Recharts 3, `next-themes` | shadcn usa o pacote único `radix-ui`; o CLI `shadcn` só é necessário para adicionar componentes                                                                    |
+| Banco       | Supabase (Postgres) com `pg_cron`, `pg_net` e Vault                                        | Migrations em `supabase/migrations/`, aplicadas à mão no SQL Editor                                                                                                |
+| Integrações | `googleapis` (Sheets, somente leitura), `fetch` na API GraphQL do Pipefy                   |                                                                                                                                                                    |
+| Qualidade   | TypeScript, ESLint, Vitest, Knip                                                           | `npm run typecheck`, `npm run lint`, `npm test`, `npm run knip`                                                                                                    |
 
 Próximo passo para entender o código: [estrutura.md](estrutura.md).

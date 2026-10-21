@@ -110,7 +110,7 @@ Uma rodada típica leva cerca de 10 s.
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | ✅ | ✅ | | | Conta de serviço que lê as planilhas |
 | `GOOGLE_PRIVATE_KEY` | ✅ | ✅ | | | Chave dessa conta (aceita `\n` literal) |
 | `CRON_SECRET` | ✅ | ✅ | ✅ `CRON_SECRET` | ✅ `cron_secret` | Autentica os agendadores. **Os quatro precisam ser iguais** |
-| URL de produção | | `DASHBOARD_URL` (opcional) | ✅ `VERCEL_URL` | ✅ `app_base_url` | Para onde os agendadores chamam. **Nunca no código**: o repositório é público |
+| URL de produção | | | ✅ `VERCEL_URL` | ✅ `app_base_url` | Para onde os agendadores chamam. **Nunca no código**: o repositório é público |
 | `PIPEFY_PIPE_ID` | | opcional | | | Só para `scripts/inspecionar-pipe.ts` |
 
 Mudou uma variável na Vercel? **Faça um redeploy**: ela só vale em deploy novo.

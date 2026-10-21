@@ -105,9 +105,9 @@ testáveis sem rede; quem faz rede está isolado em poucos arquivos (`sync-*.ts`
 | `Exportavel.tsx` | Moldura de card com botão de exportar como imagem (com legenda de período, coordenação e idade do dado) |
 | `Logo.tsx`, `ThemeToggle.tsx` | Logo que troca com o tema; botão claro/escuro |
 
-`src/components/ui/` são componentes do shadcn (`badge`, `card`, `select`,
-`separator`, `skeleton`, `tabs`, `tooltip`), gerados pelo CLI e quase sem
-alteração. `src/components/theme-provider.tsx` embrulha o `next-themes`.
+`src/components/ui/` são componentes do shadcn (`card`, `select`, `separator`,
+`skeleton`, `tabs`, `tooltip`), gerados pelo CLI e quase sem alteração. Para
+adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.tsx` embrulha o `next-themes`.
 
 ## `src/hooks/` e `src/types/`
 
@@ -195,8 +195,6 @@ Todos começam com um comentário explicando uso e flags.
 | `verificar-registry.ts` | Lê | Lê as planilhas reais pelo registry e mostra o que extraiu. `--gestao` |
 | `inspecionar-planilha.ts` | Lê | Descoberta: analisa uma planilha nova (abas, cabeçalhos, blocos) |
 | `inspecionar-pipe.ts` | Lê | Descoberta: lista pipes, fases e campos. `--listar` |
-| `capturar-linha-de-base.ts` | Lê | Fotografa as respostas da API de produção em `anexos/` (fora do git) |
-| `comparar-com-linha-de-base.ts` | Lê | Compara o banco atual com a última foto |
 
 ## `supabase/migrations/`
 

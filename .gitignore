@@ -46,6 +46,6 @@ next-env.d.ts
 # saídas dos scripts de descoberta (scripts/inspecionar-*.ts)
 descoberta-*.json
 
-# linhas de base capturadas da produção (scripts/capturar-linha-de-base.ts).
-# Têm números de vendas e nomes de pessoas e clientes: ficam fora do git.
+# fotos antigas da produção (de um script já removido). Têm números de vendas
+# e nomes de pessoas e clientes: se existir uma cópia local, fica fora do git.
 /anexos/
