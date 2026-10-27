@@ -20,6 +20,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 
+import { buscarGrafias, criarResolvedor, type ResolverPessoa } from "@/lib/pessoas";
 import type { Coordenacao, MetaPeriodo, PeriodoGestao, Venda } from "@/types";
 
 function getSupabase() {
@@ -57,13 +58,22 @@ interface LinhaProjeto {
 	fidelizacao: boolean;
 	gestao: string;
 	origem_ref: string | null;
+	contratante: string | null;
+	data_assinatura: string | null;
+	item_da_carta: string | null;
 	projeto_vendedor?: { vendedor?: { nome_vendedor?: string } | null }[] | null;
 }
 
-function paraVenda(row: LinhaProjeto): Venda {
-	const responsaveis = (row.projeto_vendedor ?? [])
-		.map((pv) => pv?.vendedor?.nome_vendedor)
-		.filter((n): n is string => Boolean(n));
+function paraVenda(row: LinhaProjeto, resolver: ResolverPessoa): Venda {
+	const responsaveis = [
+		...new Set(
+			(row.projeto_vendedor ?? [])
+				.map((pv) => pv?.vendedor?.nome_vendedor)
+				.filter((n): n is string => Boolean(n))
+				// Duas grafias da mesma pessoa no mesmo contrato contam uma vez.
+				.map((n) => resolver(n, row.gestao)),
+		),
+	];
 
 	return {
 		gestao: row.gestao as PeriodoGestao,
@@ -78,9 +88,11 @@ function paraVenda(row: LinhaProjeto): Venda {
 		valorContrato: row.valor_contrato ?? 0,
 		canalDeAquisicao: row.canal_aquisicao ?? "",
 		fidelizacao: row.fidelizacao,
+		contratante: row.contratante ?? undefined,
+		dataAssinatura: row.data_assinatura ?? undefined,
+		itemDaCarta: row.item_da_carta ?? "",
 		// Campos que a planilha tem mas o banco ainda não guarda. Não são usados
 		// por nenhum cálculo; ficam com valor neutro em vez de mentir.
-		itemDaCarta: "",
 		prazo: 0,
 		valorContratoParcelas: row.valor_contrato ?? 0,
 		precoPorSemana: 0,
@@ -93,11 +105,18 @@ function paraVenda(row: LinhaProjeto): Venda {
 	};
 }
 
-/** Todas as vendas de todas as gestões, com os responsáveis já resolvidos. */
-export async function buscarVendasDoBanco(): Promise<Venda[]> {
+/**
+ * Todas as vendas de todas as gestões, com os responsáveis já resolvidos para a
+ * PESSOA (src/lib/pessoas.ts). `{ crus: true }` devolve a grafia da fonte — é o
+ * que a Auditoria precisa para listar o que falta ligar.
+ */
+export async function buscarVendasDoBanco(
+	{ crus = false }: { crus?: boolean } = {},
+): Promise<Venda[]> {
 	const supabase = getSupabase();
 	const linhas: LinhaProjeto[] = [];
 	let inicio = 0;
+	const grafias = crus ? Promise.resolve([]) : buscarGrafias();
 
 	for (;;) {
 		const { data, error } = await supabase
@@ -106,6 +125,7 @@ export async function buscarVendasDoBanco(): Promise<Venda[]> {
 				`nome_projeto, mes_venda, assinado, coordenacao,
 				 valor_contrato, valor_vendido_real, canal_aquisicao,
 				 fidelizacao, gestao, origem_ref,
+				 contratante, data_assinatura, item_da_carta,
 				 projeto_vendedor ( vendedor ( nome_vendedor ) )`,
 			)
 			// Ordem estável: sem ORDER BY a paginação perde e repete linhas.
@@ -125,7 +145,8 @@ export async function buscarVendasDoBanco(): Promise<Venda[]> {
 		inicio += PAGINA;
 	}
 
-	return linhas.map(paraVenda);
+	const resolver = criarResolvedor(await grafias);
+	return linhas.map((l) => paraVenda(l, resolver));
 }
 
 interface LinhaMeta {
@@ -148,15 +169,20 @@ function paraMeta(row: LinhaMeta): MetaPeriodo {
 	};
 }
 
-/** Todas as metas de todas as gestões. */
-export async function buscarMetasDoBanco(): Promise<MetaPeriodo[]> {
+/**
+ * Todas as metas de todas as gestões. `meta_faturamento` tem as mesmas colunas
+ * (migration 0014); `metaVendas` ali é a meta de faturamento.
+ */
+export async function buscarMetasDoBanco(
+	tabela: "meta" | "meta_faturamento" = "meta",
+): Promise<MetaPeriodo[]> {
 	const supabase = getSupabase();
 	const linhas: LinhaMeta[] = [];
 	let inicio = 0;
 
 	for (;;) {
 		const { data, error } = await supabase
-			.from("meta")
+			.from(tabela)
 			.select("valor_meta, tipo_meta, gestao_meta, coordenacao, periodo")
 			.order("id_meta", { ascending: true })
 			.range(inicio, inicio + PAGINA - 1);
@@ -174,4 +200,84 @@ export async function buscarMetasDoBanco(): Promise<MetaPeriodo[]> {
 	}
 
 	return linhas.map(paraMeta);
+}
+
+export interface FaturamentoMes {
+	gestao: string;
+	/** null = a Fluxo inteira. */
+	coordenacao: string | null;
+	/** "AAAA-MM-01". */
+	mes: string;
+	previsto: number | null;
+	realizado: number | null;
+}
+
+/** Faturamento previsto e realizado por mês (planilha "Fluxo Faturado por Mês"). */
+export async function buscarFaturamentoDoBanco(): Promise<FaturamentoMes[]> {
+	const supabase = getSupabase();
+	const linhas: FaturamentoMes[] = [];
+	let inicio = 0;
+
+	for (;;) {
+		const { data, error } = await supabase
+			.from("faturamento_mes")
+			.select("gestao, coordenacao, mes, previsto, realizado")
+			.order("id_faturamento", { ascending: true })
+			.range(inicio, inicio + PAGINA - 1);
+
+		if (error) {
+			console.error("[SupabaseVendas] Erro ao buscar faturamento:", error.message);
+			return [];
+		}
+
+		const lote = (data ?? []) as FaturamentoMes[];
+		linhas.push(...lote);
+
+		if (lote.length < PAGINA) break;
+		inicio += PAGINA;
+	}
+
+	return linhas;
+}
+
+export interface ProjetoEntrega {
+	estado: "entregue" | "em_execucao";
+	coordenacao: string;
+	nome_projeto: string;
+	gestao_venda: string | null;
+	gestao_entrega: string | null;
+	/** "AAAA-MM-DD", como a planilha diz — sem conferência (ver 0015). */
+	data_entrega: string | null;
+	tamanho_equipe: number | null;
+	/** Nomes como a planilha escreve (migration 0016). */
+	equipe: string[];
+	situacao: string | null;
+}
+
+/** Projetos entregues e em execução (planilha de projetos, migration 0015). */
+export async function buscarEntregasDoBanco(): Promise<ProjetoEntrega[]> {
+	const supabase = getSupabase();
+	const linhas: ProjetoEntrega[] = [];
+	let inicio = 0;
+
+	for (;;) {
+		const { data, error } = await supabase
+			.from("projeto_entrega")
+			.select("estado, coordenacao, nome_projeto, gestao_venda, gestao_entrega, data_entrega, tamanho_equipe, equipe, situacao")
+			.order("id_projeto_entrega", { ascending: true })
+			.range(inicio, inicio + PAGINA - 1);
+
+		if (error) {
+			console.error("[SupabaseVendas] Erro ao buscar entregas:", error.message);
+			return [];
+		}
+
+		const lote = (data ?? []) as ProjetoEntrega[];
+		linhas.push(...lote);
+
+		if (lote.length < PAGINA) break;
+		inicio += PAGINA;
+	}
+
+	return linhas;
 }

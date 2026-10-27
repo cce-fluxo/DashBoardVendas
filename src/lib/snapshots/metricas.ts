@@ -32,8 +32,12 @@ import {
  * Histórico:
  *   1 — F7. Base do funil em Oportunidade, valor de venda em "Valor Vendido
  *       real", meta ausente sem fallback para a meta da gestão.
+ *   2 — Responsável resolvido para a PESSOA (src/lib/pessoas.ts, migration
+ *       0011). `porVendedor` junta grafias da mesma pessoa; antes, cada grafia
+ *       era um vendedor. E, até 23/24, cada responsável leva o "Valor Vendido
+ *       real" em vez do "Valor contrato" (`valorDoResponsavel`).
  */
-export const VERSAO_CALCULO = 1;
+export const VERSAO_CALCULO = 2;
 
 export interface MetricasCongeladas {
 	totalVendido: number;

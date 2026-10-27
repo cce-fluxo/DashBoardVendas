@@ -558,6 +558,38 @@ export default function AuditoriaPage() {
 								</Tabela>
 							</Secao>
 						)}
+
+						{dados.grafiasSemPessoa.length > 0 && (
+							<Secao
+								titulo="Responsáveis sem pessoa na base"
+								explicacao="Grafias da planilha que não estão em pessoa_grafia. Cada uma conta como alguém diferente no ranking — o apelido de 23/24 e o nome completo de 25/26 viram duas pessoas. Para ligar, cadastre a grafia (como aparece aqui) em pessoa_grafia, no Supabase."
+							>
+								<Tabela>
+									<thead>
+										<tr>
+											<th className={TH}>Grafia</th>
+											<th className={TH}>Gestões</th>
+											<th className={`${TH} text-right`}>Contratos</th>
+											<th className={`${TH} text-right`}>Valor</th>
+										</tr>
+									</thead>
+									<tbody>
+										{dados.grafiasSemPessoa.map((g) => (
+											<tr key={g.grafia} className="hover:bg-foreground/[0.02]">
+												<td className={`${TD} font-medium`}>{g.grafia}</td>
+												<td className={TD}>{g.gestoes.join(", ")}</td>
+												<td className={`${TD} text-right tabular-nums`}>
+													{g.contratos}
+												</td>
+												<td className={`${TD} text-right tabular-nums`}>
+													{reais(g.valor)}
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</Tabela>
+							</Secao>
+						)}
 					</>
 				)}
 			</main>

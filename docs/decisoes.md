@@ -38,7 +38,7 @@ topo dos arquivos também explicam a história de cada módulo.
 | **Fases terminais fora da varredura do cron** | 94% dos cards já são terminais e não mudam. Card que vira terminal entre duas rodadas é achado pela **reconciliação**, que consulta o estado dele no Pipefy |
 | **Remoção do que sumiu da planilha só na gestão lida e nunca com leitura vazia** | Leitura vazia costuma ser falha de acesso; apagar nesse caso limparia a gestão inteira |
 | **Banco guarda `coordenacoes` cru do Pipefy** | O campo é texto livre. Filtrar na ingestão perderia informação; quem decide o que é coordenação é a leitura (`ehCoordenacao`) |
-| **Sem tabela de apelidos de vendedor** | Um apelido em 23/24 e um nome completo em 25/26 podem ou não ser a mesma pessoa, e não há como saber. Nome não identificável é vendedor distinto; casamento aproximado inventaria identidade |
+| **Base de pessoas curada à mão, resolvida na leitura** (`pessoa`, `pessoa_grafia`, `src/lib/pessoas.ts`) | Revoga a decisão anterior ("sem tabela de apelidos"), em out/2026: o ranking histórico do painel de TV soma gestões, e sem unificar a mesma pessoa aparece em dois lugares. Casamento **automático** continua proibido para apelido — o script só liga nomes completos iguais e sugere o resto para um humano. Na leitura, e não na ingestão, porque as planilhas passadas não mudam: corrigir a base vale na hora, sem reprocessar. Grafia pode valer só numa gestão, para separar dois "Rafa" |
 | **Paginar e ordenar toda leitura grande** | O limite de 1.000 linhas do Supabase truncou contagens quatro vezes. Paginar sem `ORDER BY` repetia e perdia linhas entre páginas |
 | **Webhook do Pipefy removido** | Não tinha autenticação, estava desatualizado e descartava cards em silêncio. Com o `pg_cron` pontual, deixou de ser necessário |
 
@@ -61,6 +61,8 @@ topo dos arquivos também explicam a história de cada módulo.
 | **`unstable_cache`, não `'use cache'`** | `'use cache'` exige ligar o modo Cache Components, que muda o modelo de renderização do app inteiro, e o armazenamento padrão dele é em memória, que numa função serverless não sobrevive entre requisições |
 | **Invalidação com `expire: 0` ao fim de cada sincronização** | Quem clica em Atualizar quer ver o efeito do clique, não o dado anterior enquanto o novo é calculado |
 | **Idade do dado fora do cache** | Guardada, ela congelaria justamente o alarme de que o agendador parou |
+| **Painel de TV numa rota só e sem parâmetros** (`/api/tv`) | A TV pergunta a cada 5 min, o dia inteiro, sempre pelo mesmo período (gestão e ciclo vigentes). Uma resposta com as telas evita seis leituras por pergunta. A conta fica em `src/lib/tv.ts` sobre as funções de `calculations*.ts` — nenhuma regra própria |
+| **Funil da TV com comparação equalizada** | "vs ciclo anterior" usa a janela equalizada do comparador: o ciclo em andamento contra o anterior na mesma idade. Sem isso, um ciclo de três semanas sempre perde |
 | **Leitura vazia vira 503, não zero** | As funções de leitura devolvem lista vazia quando a consulta falha. Com cache, os zeros ficariam guardados por meia hora; um erro visível não é guardado e se resolve no próximo acesso |
 
 ## Cálculo
@@ -68,6 +70,7 @@ topo dos arquivos também explicam a história de cada módulo.
 | Decisão | Por quê |
 |---|---|
 | **Valor de venda = "Valor Vendido real"** | É o que de fato entrou. "Valor contrato" diverge (mais de duzentos mil reais em 23/24). Decisão do dono do processo |
+| **Ranking por responsável: "Valor Vendido real" até 23/24** | De 24/25 em diante o ranking usa "Valor contrato"; nas planilhas até 23/24 essa coluna não é o valor do projeto (R$ 41 mil contra R$ 3,7 mil vendidos). Decisão do dono do processo |
 | **Base do funil = Oportunidade** | Todos os cards passam por ela e ela existe nos dois pipes. "Contato aberto" registra tentativa, não avanço |
 | **Inferência de fases** | Chegar a uma fase implica ter passado pelas anteriores, mesmo que o Pipefy não tenha registrado a transição. Elimina conversões acima de 100% |
 | **…exceto etapas não instrumentadas** | O pipe antigo não tinha "Contato aberto" nem "Precificação". Inferir passagem por elas fabricaria um número plausível; elas ficam fora do cálculo (não só da tela) |

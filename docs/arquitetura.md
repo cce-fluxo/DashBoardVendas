@@ -150,10 +150,12 @@ Cada tela chama a rota da sua área:
 | `/dashboard/funil`                          | `/api/dashboard`, `/api/dashboard/funil`, `/api/dashboard/comparador-fases`, `/api/dashboard/comparador-funil` |
 | `/dashboard/vendedores`, `/dashboard/metas` | `/api/dashboard`                                                                                               |
 | `/dashboard/auditoria`                      | `/api/dashboard/auditoria`, `/api/dashboard/origem` (via "Conferir um número")                                 |
+| `/tv` (painel de parede, sem seletor)       | `/api/tv`, a cada 5 min: metas e faturamento, funil e fechados do ciclo vigente, ranking da gestão e histórico, últimas entregas                       |
 | Todas                                       | `POST /api/dashboard/atualizar` (botão Atualizar)                                                              |
 
-**Tudo segue o seletor de período** do topo da tela. A única exceção é o
-Comparador periódico de funil, que por definição escolhe dois períodos próprios.
+**Tudo segue o seletor de período** do topo da tela. As exceções são o
+Comparador periódico de funil, que por definição escolhe dois períodos próprios,
+e o painel `/tv`, que mostra sempre a gestão e o ciclo vigentes.
 
 ### Cache das respostas
 

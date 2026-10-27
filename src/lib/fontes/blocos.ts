@@ -562,7 +562,7 @@ function detectarColisoes(metas: MetaLida[]): string[] {
 		);
 }
 
-function colunaParaLetra(indice: number): string {
+export function colunaParaLetra(indice: number): string {
 	let n = indice;
 	let s = "";
 	do {

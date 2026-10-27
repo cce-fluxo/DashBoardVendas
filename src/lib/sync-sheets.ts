@@ -11,7 +11,12 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-import { lerContratos, lerMetasDaGestao } from "@/lib/fontes/sheets-fonte";
+import {
+	lerContratos,
+	lerEntregas,
+	lerFaturamentoDaGestao,
+	lerMetasDaGestao,
+} from "@/lib/fontes/sheets-fonte";
 import {
 	acharOrfaos,
 	chaveMeta,
@@ -21,7 +26,7 @@ import {
 	normalizarNomeVendedor,
 	type ContratoRejeitado,
 } from "@/lib/fontes/mapear";
-import { GESTOES, gestoesDoCron, idGestaoVigente } from "@/lib/fontes/registry";
+import { FONTE_ENTREGAS, GESTOES, gestoesDoCron, idGestaoVigente } from "@/lib/fontes/registry";
 import {
 	abrirExecucao,
 	type DisparadoPor,
@@ -134,6 +139,8 @@ export interface ResultadoGestao {
 	execucao: number | null;
 	contratos: { inseridos: number; erros: number; removidos: number };
 	metas: { inseridos: number; erros: number; derivadas: number; removidos: number };
+	/** Faturamento mês a mês + metas de faturamento. null = gestão sem a fonte. */
+	faturamento: ResultadoFaturamento | null;
 	/**
 	 * Linhas que a planilha não pôde fornecer como dado: descartes de leitura
 	 * (falta obrigatório) + rejeições de mapeamento (mês ou coordenação
@@ -149,6 +156,8 @@ export interface ResultadoGestao {
 
 export interface ResultadoSync {
 	porGestao: ResultadoGestao[];
+	/** Planilha de projetos (tela de entregas da TV). Não é por gestão. */
+	entregas: ResultadoEntregas;
 	totais: {
 		contratos: number;
 		metas: number;
@@ -255,6 +264,13 @@ async function executarGestao(
 			motivo: r.motivo,
 			payload: r.valores,
 		});
+	}
+	// O contrato entra; só o campo opcional se perde. Ainda assim fica registrado.
+	for (const p of projetos) {
+		for (const motivo of p.camposPerdidos) {
+			rejeicoes.push({ origemRef: p.origemRef, motivo });
+			execucao.rejeitar({ origemRef: p.origemRef, motivo, payload: p.linha });
+		}
 	}
 
 	let contratosInseridos = 0;
@@ -458,6 +474,9 @@ async function executarGestao(
 		}
 	}
 
+	// ── Faturamento ──
+	const faturamento = await sincronizarFaturamento(gestao, simular, execucao, ctx);
+
 	// ── Reconciliação ──
 	// Sem isto o banco só ganha linhas: renomear um projeto na planilha insere a
 	// nova e deixa a antiga, e apagar uma linha não apaga nada. Os dois casos
@@ -484,11 +503,11 @@ async function executarGestao(
 	const metasLidas = lidas.metas.length + lidas.ilegiveis.length;
 
 	await execucao.finalizar({
-		lidas: contratosLidos + metasLidas,
-		aceitas: contratosInseridos + metasInseridas,
+		lidas: contratosLidos + metasLidas + (faturamento?.lidas ?? 0),
+		aceitas: contratosInseridos + metasInseridas + (faturamento?.aceitas ?? 0),
 		ignoradas: tabela.ignoradas,
-		removidas: removidos.projetos + removidos.metas,
-		erros: contratosErros + metasErros,
+		removidas: removidos.projetos + removidos.metas + (faturamento?.removidos ?? 0),
+		erros: contratosErros + metasErros + (faturamento?.erros ?? 0),
 	});
 
 	return {
@@ -505,10 +524,127 @@ async function executarGestao(
 			derivadas: metas.filter((m) => m.derivada).length,
 			removidos: removidos.metas,
 		},
+		faturamento,
 		rejeicoes,
 		avisos,
 		notas,
 	};
+}
+
+export interface ResultadoFaturamento {
+	lidas: number;
+	aceitas: number;
+	erros: number;
+	removidos: number;
+}
+
+/**
+ * Faturamento mês a mês e metas de faturamento (migration 0014).
+ *
+ * Falha aqui NÃO derruba a gestão: contratos e metas de vendas já foram
+ * gravados, e são eles que as telas do dashboard usam. Planilha de faturamento
+ * sem compartilhamento com a conta de serviço vira aviso, não 500 no cron.
+ */
+async function sincronizarFaturamento(
+	gestao: Gestao,
+	simular: boolean,
+	execucao: Execucao,
+	ctx: {
+		supabase: ReturnType<typeof getSupabase>;
+		rejeicoes: { origemRef: string; motivo: string }[];
+		avisos: string[];
+		notas: string[];
+	},
+): Promise<ResultadoFaturamento | null> {
+	if (!gestao.faturamento) return null;
+	const { supabase, rejeicoes, avisos, notas } = ctx;
+
+	let lido: Awaited<ReturnType<typeof lerFaturamentoDaGestao>>;
+	try {
+		lido = await lerFaturamentoDaGestao(gestao);
+	} catch (erro) {
+		avisos.push(
+			`faturamento não lido (${erro instanceof Error ? erro.message : String(erro)}). ` +
+				`A planilha está compartilhada com a conta de serviço?`,
+		);
+		return { lidas: 0, aceitas: 0, erros: 1, removidos: 0 };
+	}
+	if (!lido) return null;
+
+	avisos.push(...lido.avisos, ...lido.metas.avisos);
+	notas.push(...lido.metas.notas);
+	for (const i of [...lido.ilegiveis, ...lido.metas.ilegiveis]) {
+		const motivo = `faturamento ${i.rotulo}: ${i.motivo} ("${i.bruto}")`;
+		rejeicoes.push({ origemRef: i.origemRef, motivo });
+		execucao.rejeitar({ origemRef: i.origemRef, motivo, payload: { rotulo: i.rotulo, bruto: i.bruto } });
+	}
+
+	// O "total" do bloco mensal soma só os meses que já têm meta (out/26 = R$ 125
+	// mil, o resto "?????"). Gravado como meta de gestão, diria que a meta do ano
+	// é a de outubro.
+	const metasLidas = lido.metas.metas.filter((m) => m.tipo !== "gestao");
+	if (metasLidas.length < lido.metas.metas.length) {
+		notas.push("faturamento: meta de gestão não gravada — o 'total' da planilha soma só os meses definidos.");
+	}
+	const metas = mapearMetas(gestao, metasLidas).map((m) =>
+		comLinhagem(m.linha, execucao, "sheets", m.origemRef),
+	);
+	const meses = lido.meses.map((m) =>
+		comLinhagem(
+			{ gestao: gestao.id, coordenacao: m.coordenacao, mes: m.mes, previsto: m.previsto, realizado: m.realizado },
+			execucao,
+			"sheets",
+			m.origemRef,
+		),
+	);
+
+	const resultado: ResultadoFaturamento = {
+		lidas: meses.length + lido.metas.metas.length + lido.metas.ilegiveis.length,
+		aceitas: meses.length + metas.length,
+		erros: 0,
+		removidos: 0,
+	};
+	if (simular) return resultado;
+
+	const gravar = async (tabela: string, linhas: object[], onConflict: string) => {
+		if (linhas.length === 0) return true;
+		const { error } = await supabase.from(tabela).upsert(linhas, { onConflict });
+		if (error) {
+			avisos.push(`faturamento: gravação em ${tabela} falhou (${error.message}).`);
+			resultado.erros++;
+			resultado.aceitas -= linhas.length;
+		}
+		return !error;
+	};
+	await gravar("faturamento_mes", meses, "gestao,coordenacao,mes");
+	const metasOk = await gravar("meta_faturamento", metas, "gestao_meta,tipo_meta,periodo,coordenacao");
+
+	// Meta que voltou a "?????" sai do banco. A grade de meses é fixa (12 × 6)
+	// e não precisa disso. Só reconcilia se a aba de metas trouxe alguma coisa:
+	// aba vazia é leitura quebrada, não "todas as metas foram apagadas".
+	if (metasOk && lido.metas.metas.length + lido.metas.ilegiveis.length > 0) {
+		const { data } = await supabase
+			.from("meta_faturamento")
+			.select("id_meta, tipo_meta, periodo, coordenacao")
+			.eq("gestao_meta", gestao.id);
+		const vigentes = new Set(
+			metas.map((m) => chaveMeta(m.tipo_meta, m.periodo, m.coordenacao)),
+		);
+		const orfas = (data ?? []).filter(
+			(r: { tipo_meta: string; periodo: string; coordenacao: string | null }) =>
+				!vigentes.has(chaveMeta(r.tipo_meta, r.periodo, r.coordenacao)),
+		);
+		if (orfas.length > 0) {
+			await supabase
+				.from("meta_faturamento")
+				.delete()
+				.in("id_meta", orfas.map((r: { id_meta: number }) => r.id_meta));
+			resultado.removidos = orfas.length;
+			notas.push(`faturamento: ${orfas.length} meta(s) que sumiram da planilha removida(s).`);
+		}
+	}
+
+	return resultado;
 }
 
 /**
@@ -679,6 +815,11 @@ export async function sincronizarSheets(
 		porGestao.push(resultado);
 	}
 
+	const entregas = await sincronizarEntregas(
+		opcoes.simular === true,
+		opcoes.disparadoPor ?? "manual",
+	);
+
 	// Vendedor sem nenhum vínculo é resíduo: sobra quando um nome é corrigido na
 	// planilha ou um projeto sai. Não corrompe número — nada lê a tabela sozinha —
 	// mas acumula a cada recarga e polui qualquer listagem futura de pessoas.
@@ -700,7 +841,126 @@ export async function sincronizarSheets(
 		{ contratos: 0, metas: 0, erros: 0, rejeicoes: 0, removidos: 0 },
 	);
 
-	return { porGestao, totais };
+	return { porGestao, entregas, totais };
+}
+
+// ─── Entregas ─────────────────────────────────────────────────────
+
+export interface ResultadoEntregas {
+	execucao: number | null;
+	inseridos: number;
+	removidos: number;
+	erros: number;
+	rejeicoes: { origemRef: string; motivo: string }[];
+	avisos: string[];
+}
+
+/**
+ * Projetos entregues e em execução (migration 0015), da planilha de projetos.
+ *
+ * Roda uma vez por sync, fora do laço de gestões: a aba cobre todas. Falha aqui
+ * vira aviso e não derruba o sync — contratos e metas já foram gravados.
+ */
+async function sincronizarEntregas(
+	simular: boolean,
+	disparadoPor: DisparadoPor,
+): Promise<ResultadoEntregas> {
+	const supabase = getSupabase();
+	const fonte = FONTE_ENTREGAS;
+	const r: ResultadoEntregas = { execucao: null, inseridos: 0, removidos: 0, erros: 0, rejeicoes: [], avisos: [] };
+	const execucao = await abrirExecucao({
+		fonteTipo: "sheets",
+		fonteRef: fonte.spreadsheetId,
+		disparadoPor,
+		simular,
+	});
+	r.execucao = execucao.id;
+
+	try {
+		const lidos = await lerEntregas(fonte);
+		const projetos = lidos.flatMap((l) => l.projetos);
+		for (const l of lidos) {
+			r.avisos.push(...l.avisos);
+			for (const x of l.rejeitadas) {
+				r.rejeicoes.push({ origemRef: x.origemRef, motivo: x.motivo });
+				execucao.rejeitar({ origemRef: x.origemRef, motivo: x.motivo, payload: x.linha });
+			}
+		}
+		const linhas = projetos.map((p) =>
+			comLinhagem(
+				{
+					estado: p.estado,
+					coordenacao: p.coordenacao,
+					nome_projeto: p.projeto,
+					gestao_venda: p.gestaoVenda,
+					gestao_entrega: p.gestaoEntrega,
+					data_entrega: p.dataEntrega,
+					tamanho_equipe: p.tamanhoEquipe,
+					equipe: p.equipe,
+					situacao: p.situacao,
+				},
+				execucao,
+				"sheets",
+				p.origemRef,
+			),
+		);
+		const chave = (x: { estado: string; coordenacao: string; nome_projeto: string; gestao_venda: string | null }) =>
+			`${x.estado}|${x.coordenacao}|${x.nome_projeto}|${x.gestao_venda}`;
+
+		if (!simular && linhas.length > 0) {
+			const { error } = await supabase
+				.from("projeto_entrega")
+				.upsert(linhas, { onConflict: "estado,coordenacao,nome_projeto,gestao_venda" });
+			if (error) {
+				r.avisos.push(`entregas: gravação falhou (${error.message}).`);
+				r.erros++;
+			} else {
+				r.inseridos = linhas.length;
+			}
+		}
+
+		// Some da planilha → sai do banco (o projeto que passou de "Atual" para
+		// "Entregues", por exemplo). Só com as DUAS abas lidas: aba vazia é
+		// leitura quebrada, não "todos os projetos acabaram".
+		if (!simular && r.erros === 0 && lidos.every((l) => l.projetos.length > 0)) {
+			type Linha = { id_projeto_entrega: number; estado: string; coordenacao: string; nome_projeto: string; gestao_venda: string | null };
+			const noBanco: Linha[] = [];
+			for (let inicio = 0; ; inicio += 1000) {
+				const { data, error } = await supabase
+					.from("projeto_entrega")
+					.select("id_projeto_entrega, estado, coordenacao, nome_projeto, gestao_venda")
+					.order("id_projeto_entrega", { ascending: true })
+					.range(inicio, inicio + 999);
+				if (error) throw new Error(`projeto_entrega: ${error.message}`);
+				noBanco.push(...((data ?? []) as Linha[]));
+				if ((data ?? []).length < 1000) break;
+			}
+			const orfaos = acharOrfaos(noBanco, chave, new Set(linhas.map(chave)));
+			if (orfaos.length > 0) {
+				await supabase
+					.from("projeto_entrega")
+					.delete()
+					.in("id_projeto_entrega", orfaos.map((o) => o.id_projeto_entrega));
+				r.removidos = orfaos.length;
+			}
+		}
+
+		await execucao.finalizar({
+			lidas: projetos.length + r.rejeicoes.length + lidos.reduce((s, l) => s + l.ignoradas, 0),
+			aceitas: r.inseridos,
+			ignoradas: lidos.reduce((s, l) => s + l.ignoradas, 0),
+			removidas: r.removidos,
+			erros: r.erros,
+		});
+	} catch (erro) {
+		await execucao.falhar(erro);
+		r.erros++;
+		r.avisos.push(
+			`entregas não lidas (${erro instanceof Error ? erro.message : String(erro)}). ` +
+				`A planilha de projetos está compartilhada com a conta de serviço?`,
+		);
+	}
+	return r;
 }
 
 /**

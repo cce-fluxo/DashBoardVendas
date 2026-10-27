@@ -25,6 +25,12 @@ empresa).
 
 3. `npm run dev` e abra <http://localhost:3000>.
 
+O cache das rotas de leitura (`src/lib/cache.ts`) fica em disco em
+`.next/dev/cache` e sobrevive a reiniciar o servidor. Depois de mudar um
+cálculo ou a base de pessoas, pare o `npm run dev`, rode
+`rm -rf .next/dev/cache` e suba de novo. O botão Atualizar também limpa, mas
+antes vai às fontes.
+
 Os scripts de `scripts/` leem o mesmo `.env.local`.
 
 ## Antes de publicar
@@ -182,12 +188,35 @@ Depois de trocar qualquer variável na Vercel, faça **Redeploy**.
 
 ## Aplicar uma migration
 
-1. Crie o próximo arquivo numerado em `supabase/migrations/` (`0011_<assunto>.sql`),
+1. Crie o próximo arquivo numerado em `supabase/migrations/` (`0017_<assunto>.sql`),
    começando com um comentário que explique o problema e a decisão, como as
    anteriores.
 2. Escreva dentro de `BEGIN; ... COMMIT;`.
 3. Aplique no **SQL Editor** do Supabase. Não há pipeline automático.
 4. Faça o commit do arquivo junto com o código que depende dele.
+
+## Base de pessoas
+
+A mesma pessoa aparece com grafias diferentes entre gestões ("Jonas" em 23/24,
+"Jonas Pimenta Thé" em 25/26). A base em `pessoa` e `pessoa_grafia` junta as
+grafias (ver [dados.md](dados.md#pessoas)).
+
+**Primeira montagem:**
+
+```bash
+npx tsx scripts/sugerir-pessoas.ts                       # só lê; escreve pessoas-sugeridas.csv
+# revise o CSV: preencha nome_exibicao onde ligar, e gestao se a grafia só vale numa gestão
+npx tsx scripts/sugerir-pessoas.ts --aplicar pessoas-sugeridas.csv   # grava no banco
+```
+
+Nomes completos iguais já vêm com `nome_exibicao` preenchido. Apelidos nunca
+vêm: o script só sugere candidatos na coluna `sugestao`. O CSV tem nomes de
+pessoas e está no `.gitignore`; não suba ele para o repositório (é público).
+
+**Correção do dia a dia:** a Auditoria mostra "Responsáveis sem pessoa na base".
+Cadastre a grafia em `pessoa_grafia` pelo Table Editor do Supabase, com o texto
+exatamente como a Auditoria mostra. Vale na próxima leitura, sem sync. As telas
+têm cache de até 30 min: clique em **Atualizar** para ver na hora.
 
 ## Mudar uma regra de cálculo
 

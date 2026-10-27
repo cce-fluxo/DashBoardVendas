@@ -66,7 +66,8 @@ testáveis sem rede; quem faz rede está isolado em poucos arquivos (`sync-*.ts`
 | `dashboard/funil/page.tsx` | **Funil**: conversão por etapa, tempo médio por fase, funil por coordenação, comparador de fases (De → Para) e comparador periódico de funil |
 | `dashboard/vendedores/page.tsx` | **Vendedores**: ranking por volume vendido no período |
 | `dashboard/metas/page.tsx` | **Metas**: atingimento geral e por coordenação |
-| `dashboard/auditoria/page.tsx` | **Auditoria**: última carga de cada fonte, rejeições, cobertura, snapshots, divergência entre séries de meta, "Conferir um número" |
+| `dashboard/auditoria/page.tsx` | **Auditoria**: última carga de cada fonte, rejeições, cobertura, snapshots, divergência entre séries de meta, responsáveis sem pessoa, "Conferir um número" |
+| `tv/layout.tsx`, `tv/page.tsx` | **Painel de TV**: canvas 1920×1080, telas girando a cada 18 s (componentes em `src/components/tv/`). Desenho no Figma Make `vMPbgU4OPKh16hHZZVJfXf` |
 
 ### Rotas de API
 
@@ -80,6 +81,7 @@ testáveis sem rede; quem faz rede está isolado em poucos arquivos (`sync-*.ts`
 | `api/dashboard/comparador-funil/route.ts` | GET | Comparativo de duas coortes (períodos A e B) |
 | `api/dashboard/origem/route.ts` | GET | Lista de contratos que compõem o total de um período, com a linha da planilha de cada um |
 | `api/dashboard/auditoria/route.ts` | GET | Estado de saúde da ingestão |
+| `api/tv/route.ts` | GET | As telas do painel de TV numa resposta, para a gestão e o ciclo vigentes |
 | `api/dashboard/atualizar/route.ts` | POST | Botão Atualizar: vai às fontes, com trava por cooldown e por execução em andamento. **Não pede segredo** |
 
 ## `src/components/dashboard/` — componentes de negócio
@@ -130,6 +132,8 @@ adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.t
 | `coordenacoes.ts` | As 5 coordenações e como reconhecer uma num campo de texto livre |
 | `colors.ts` | Governança de cores: identidade, alerta e volume ([decisoes.md](decisoes.md)) |
 | `utils.ts` | `cn()` para combinar classes do Tailwind |
+| `tv.ts` | Números do painel de TV sobre os cálculos acima: metas e faturamento do ciclo, funil do ciclo, rankings, últimos fechados, últimas entregas |
+| `pessoas.ts` | Grafia de responsável → pessoa; lista do que falta ligar. Lê `pessoa_grafia` |
 
 ### Acesso ao banco
 
@@ -161,6 +165,8 @@ adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.t
 | `sheets-fonte.ts` | Única camada que fala com a API do Google Sheets (somente leitura) |
 | `tabela.ts` | Lê a aba de contratos casando colunas pelo nome do cabeçalho |
 | `blocos.ts` | Lê a aba "Metas por coordenação", que é um painel de blocos e não uma tabela |
+| `entregas.ts` | Lê as abas de projetos entregues e em execução |
+| `faturamento.ts` | Lê a grade mês × Previsto/Realizado da planilha de faturamento |
 | `normalizar.ts` | Normaliza cabeçalhos (acentos, espaços, `º` × `°`) |
 | `mapear.ts` | Converte o lido em linhas do banco; identidade de contrato e de meta; nomes de vendedor |
 
@@ -196,6 +202,7 @@ Todos começam com um comentário explicando uso e flags.
 | `verificar-registry.ts` | Lê | Lê as planilhas reais pelo registry e mostra o que extraiu. `--gestao` |
 | `inspecionar-planilha.ts` | Lê | Descoberta: analisa uma planilha nova (abas, cabeçalhos, blocos) |
 | `inspecionar-pipe.ts` | Lê | Descoberta: lista pipes, fases e campos. `--listar` |
+| `sugerir-pessoas.ts` | Lê / escreve | Sem flag, só gera `pessoas-sugeridas.csv`. `--aplicar <csv>` grava `pessoa` e `pessoa_grafia` |
 
 ## `supabase/migrations/`
 
@@ -214,6 +221,12 @@ resolveu. Detalhes das tabelas: [dados.md](dados.md).
 | `0008_disparo_observavel.sql` | View `disparo_recente` com as respostas HTTP |
 | `0009_url_verificavel.sql` | `url_do_disparo()` para conferir a URL sem disparar |
 | `0010_identidade_do_contrato.sql` | Contrato identificado por gestão + nome + coordenação + mês |
+| `0011_base_de_pessoas.sql` | `pessoa` e `pessoa_grafia`: grafias de responsável unificadas por pessoa |
+| `0012_detalhes_do_contrato.sql` | `contratante`, `data_assinatura` e `item_da_carta` em `projeto_vendido` |
+| `0013_foto_da_pessoa.sql` | `foto_url` em `pessoa` |
+| `0014_faturamento.sql` | `faturamento_mes` e `meta_faturamento` |
+| `0015_entregas.sql` | `projeto_entrega` |
+| `0016_equipe_da_entrega.sql` | `equipe` em `projeto_entrega` |
 
 ## `docs/`
 

@@ -123,6 +123,27 @@ export interface FonteBlocos {
 	prefixoCiclo: string;
 }
 
+/**
+ * Fonte do faturamento: a planilha "Fluxo Faturado por Mês" da gestão.
+ *
+ * Cada aba listada tem uma grade de 12 meses ("Outubro/26" | Previsto |
+ * Realizado). `metas` aponta para a aba de metas DE FATURAMENTO da mesma
+ * planilha, que tem o layout de blocos da de vendas (ver blocos.ts).
+ */
+export interface FonteFaturamento {
+	spreadsheetId: string;
+	/** Aba → coordenação. `null` = a Fluxo inteira. */
+	abas: { aba: string; coordenacao: string | null }[];
+	metas: FonteBlocos;
+}
+
+/** Planilha de projetos: uma só para todas as gestões (ver entregas.ts). */
+export interface FonteEntregas {
+	spreadsheetId: string;
+	abaEntregues: string;
+	abaEmExecucao: string;
+}
+
 export interface Gestao {
 	id: IdGestao;
 	/** Ano civil em que a gestão começa (out). "24/25" → 2024. */
@@ -132,6 +153,8 @@ export interface Gestao {
 	contratos: FonteTabela;
 	/** Fonte das metas. */
 	metas?: FonteBlocos;
+	/** Faturamento mês a mês e as metas dele. Só a partir de 26/27. */
+	faturamento?: FonteFaturamento;
 	/**
 	 * Gestão encerrada não muda mais: só o backfill a lê, o cron a ignora.
 	 * Derivado da data em vez de declarado — ver `gestaoEstaAtiva`.

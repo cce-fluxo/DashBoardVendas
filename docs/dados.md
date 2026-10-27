@@ -88,10 +88,30 @@ Faltando a meta de um nível, a tela mostra "sem meta definida", e não usa a de
 outro nível nem mostra 0%. A soma das metas das coordenações não reconstrói a
 meta da Fluxo; a tela de Auditoria mostra essa diferença de propósito.
 
+### Pessoas
+
+O banco guarda o responsável como a planilha escreveu: apelido em 23/24 e 24/25
+("Jonas"), nome completo em 25/26 e 26/27 ("Jonas Pimenta Thé"). `pessoa_grafia`
+liga cada grafia a uma pessoa, e `buscarVendasDoBanco` troca a grafia pelo
+`nome_exibicao` na leitura — ranking, `/dashboard/vendedores`, snapshots e TV
+herdam a unificação.
+
+- Grafia sem pessoa continua sendo ela mesma; a Auditoria lista quais são.
+- A grafia é gravada normalizada (`normalizarNomeVendedor`): palavras
+  capitalizadas, um espaço entre elas. Editando à mão, use a forma que a
+  Auditoria mostra.
+- A busca tenta `(grafia, gestão do contrato)` antes de `(grafia, nula)`.
+- Montar ou revisar a base: [operacao.md](operacao.md#base-de-pessoas).
+
 ### Valor de venda
 
 O total vendido usa a coluna **"Valor Vendido real"** (o que de fato entrou), e
 não "Valor contrato". As duas existem nas planilhas e divergem.
+
+O ranking por vendedor e por canal (cada responsável leva o valor inteiro do
+contrato) usa "Valor contrato" de 24/25 em diante e **"Valor Vendido real" até
+23/24**, onde "Valor contrato" não é o valor do projeto
+(`valorDoResponsavel` em `src/lib/calculations.ts`).
 
 ---
 
@@ -133,6 +153,28 @@ espalhados (lido por `fontes/blocos.ts`):
 
 Cada planilha tem diferenças de layout. Elas estão comentadas em `observacoes` de
 cada gestão no registry.
+
+### Google Sheets — faturamento (26/27 em diante)
+
+Planilha separada, "Fluxo Faturado por Mês 26/27" (`faturamento` da gestão no
+registry). A aba "Visão Geral" (Fluxo) e as abas ACE, CCE, MNP, PRO e QAB têm a
+mesma grade: uma linha de meses ("Outubro/26"), embaixo "Previsto | Realizado",
+embaixo os valores. O ano vem da gestão, não do rótulo. A aba "Metas por
+coordenação" usa o layout de blocos da planilha de vendas. Leitor:
+`src/lib/fontes/faturamento.ts`. A conta de serviço precisa estar compartilhada
+como Leitor nessa planilha também.
+
+### Google Sheets — projetos (entregas)
+
+`FONTE_ENTREGAS` no registry: abas "Projetos - Entregues" e "Projetos - Atual"
+da planilha de projetos, que cobrem todas as gestões. Leitor:
+`src/lib/fontes/entregas.ts`, que documenta duas armadilhas da aba de entregues
+(coordenação fora da coluna do cabeçalho e linhas de ACE deslocadas duas
+colunas). A data da entrega é o "Prazo Real" ("Prazo Final" é calculado pela
+planilha) ou, sem ele, "Data de finalização". A gestão da entrega sai da DATA:
+"Gestão - Entrega" é gravada crua, mas a fórmula dela não é confiável e a TV
+não a usa. Entrega sem data ou com data no futuro não aparece. A planilha não
+tem "no prazo" confiável para todas as entregas, e a TV não mostra.
 
 ### Pipefy — dois pipes
 
@@ -253,8 +295,13 @@ erDiagram
 
 | Tabela | O que guarda | Escrita por | Chave de negócio |
 |---|---|---|---|
-| `projeto_vendido` | Contratos assinados (vendas) | `sync-sheets.ts` | `(gestao, nome_projeto, coordenacao, mes_venda)` |
+| `projeto_vendido` | Contratos assinados (vendas). Desde a 0012 também `contratante`, `data_assinatura` e `item_da_carta`, opcionais | `sync-sheets.ts` | `(gestao, nome_projeto, coordenacao, mes_venda)` |
+| `pessoa` | Uma linha por pessoa, com `nome_exibicao` curto (único) para tela e `foto_url` opcional (pódio e entregas da TV; sem foto, iniciais). As fotos ficam no bucket público `fotos` do Storage, em `pessoas/<id_pessoa>.webp` (320 px), tiradas do organograma no Miro | à mão / `scripts/sugerir-pessoas.ts` | `nome_exibicao` |
+| `pessoa_grafia` | Grafia de responsável → pessoa. `gestao` nula = vale sempre | à mão / `scripts/sugerir-pessoas.ts` | `(grafia, gestao)`, NULLS NOT DISTINCT |
 | `meta` | Metas por gestão, ciclo e mês, geral ou por coordenação | `sync-sheets.ts` | `(gestao_meta, tipo_meta, periodo, coordenacao)` |
+| `faturamento_mes` | Faturamento previsto e realizado por mês, da Fluxo (`coordenacao` nula) e por coordenação. Valor ilegível grava NULL e motivo em `ingestao_rejeicao` | `sync-sheets.ts` (planilha "Fluxo Faturado por Mês", 26/27 em diante) | `(gestao, coordenacao, mes)`, NULLS NOT DISTINCT |
+| `meta_faturamento` | Metas de faturamento, mesmas colunas de `meta`. Mensais (só da Fluxo) e de ciclo (Fluxo e coordenações). A de gestão não é gravada: o "total" do bloco mensal soma só os meses já definidos | `sync-sheets.ts` | `(gestao_meta, tipo_meta, periodo, coordenacao)` |
+| `projeto_entrega` | Projetos entregues (`estado = entregue`) e em execução (`em_execucao`), com gestão da venda, "Gestão - Entrega" crua (não usada), data de entrega, tamanho da equipe, `equipe` (nomes de gerente e consultores, ligados a `pessoa` na leitura) e `situacao` crua ("Rescindido" fica no banco; a TV não conta como entrega) | `sync-sheets.ts` (planilha de projetos, todas as gestões de uma vez) | `(estado, coordenacao, nome_projeto, gestao_venda)`, NULLS NOT DISTINCT |
 | `vendedor` | Nomes de vendedores (normalizados) | as duas sincronizações | `nome_vendedor` |
 | `projeto_vendedor`, `card_vendedor` | Quem vendeu cada contrato / é responsável por cada card | as duas sincronizações | pares de IDs |
 | `card` | Cards do Pipefy, com a fase atual | `sync-pipefy.ts` | `pipefy_id` |

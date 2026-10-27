@@ -75,6 +75,31 @@ export function mesParaData(
 	return `${ano}-${String(mm).padStart(2, "0")}-01`;
 }
 
+/**
+ * "05/10/2026" → "2026-10-05". Vazio → null sem erro; ilegível → null com erro.
+ *
+ * "30/12/1899" é o dia zero do Sheets: o que uma célula de data VAZIA com
+ * fórmula devolve. Tratar como data colocaria o contrato em 1899.
+ */
+export function parsearDataBR(
+	bruto: string | undefined,
+): { data: string | null; erro?: string } {
+	const s = (bruto ?? "").trim();
+	if (!s || s === "30/12/1899") return { data: null };
+	const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+	if (m) {
+		const [dd, mm, aaaa] = [Number(m[1]), Number(m[2]), Number(m[3])];
+		const d = new Date(Date.UTC(aaaa, mm - 1, dd));
+		// Date aceita 31/02 e rola para março; a volta confere que o dia existe.
+		if (d.getUTCDate() === dd && d.getUTCMonth() === mm - 1) {
+			return {
+				data: `${aaaa}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`,
+			};
+		}
+	}
+	return { data: null, erro: `data ilegível: "${s}"` };
+}
+
 // ─── Contratos ────────────────────────────────────────────────────
 
 export interface LinhaProjeto {
@@ -87,12 +112,20 @@ export interface LinhaProjeto {
 	canal_aquisicao: string | null;
 	fidelizacao: boolean;
 	gestao: string;
+	contratante: string | null;
+	data_assinatura: string | null;
+	item_da_carta: string | null;
 }
 
 export interface ProjetoMapeado {
 	linha: LinhaProjeto;
 	responsaveis: string[];
 	origemRef: string;
+	/**
+	 * Campo opcional que não pôde ser lido. O contrato ENTRA (com o campo nulo),
+	 * mas o motivo precisa ir para `ingestao_rejeicao` — nenhum descarte calado.
+	 */
+	camposPerdidos: string[];
 }
 
 export interface ContratoRejeitado {
@@ -154,9 +187,14 @@ export function mapearContratos(
 			.map((r) => (r ?? "").trim())
 			.filter(Boolean);
 
+		const assinatura = parsearDataBR(v.dataAssinatura);
+
 		projetos.push({
 			origemRef: l.origemRef,
 			responsaveis,
+			camposPerdidos: assinatura.erro
+				? [`data de assinatura descartada — ${assinatura.erro}`]
+				: [],
 			linha: {
 				mes_venda: mesVenda,
 				nome_projeto: (v.projeto ?? "").trim(),
@@ -169,6 +207,9 @@ export function mapearContratos(
 				canal_aquisicao: (v.canalAquisicao ?? "").trim() || null,
 				fidelizacao: inferirFidelizacao(v),
 				gestao: gestao.id,
+				contratante: (v.contratante ?? "").trim() || null,
+				data_assinatura: assinatura.data,
+				item_da_carta: (v.itemDaCarta ?? "").trim() || null,
 			},
 		});
 	}

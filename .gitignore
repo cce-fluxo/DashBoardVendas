@@ -49,3 +49,4 @@ descoberta-*.json
 # fotos antigas da produção (de um script já removido). Têm números de vendas
 # e nomes de pessoas e clientes: se existir uma cópia local, fica fora do git.
 /anexos/
+pessoas-*.csv

@@ -23,7 +23,7 @@
 //   3. Curado, o calendário passa por `validarCalendario` no boot; lido da
 //      planilha, um erro de digitação vira dado errado silencioso.
 
-import type { Ciclo, Gestao, IdGestao } from "./tipos";
+import type { Ciclo, FonteEntregas, Gestao, IdGestao } from "./tipos";
 
 // ─── Colunas de contratos ─────────────────────────────────────────
 //
@@ -85,6 +85,19 @@ const PLANILHA_2324 = "13Nav6YnYqkcGT4TOCXSyYHr6ZcY0Rbt6XTBuzi81v6c";
 const PLANILHA_2425 = "1IZbwYwyRhCY7ne8W_plGzLidT0pwuLbUXUMY3c7hZBg";
 const PLANILHA_2526 = "1ssBeBDwghhiQU92-Hl9nkFt4QZ0dRK1wbkrJ6gick4E";
 const PLANILHA_2627 = "1WKWznpWgS2VDKCaLHiBUjfZfJsFnYxR-8_92EC7O9B8";
+/** "Fluxo Faturado por Mês 26/27": consolida as planilhas de faturamento das coordenações. */
+const FATURAMENTO_2627 = "1VhcOqq1GKvwf3xEPUBTJsN_OjSwhcUy9raf9BceLQ-E";
+
+/**
+ * Planilha de projetos ("DPlanilha 25/26"). Apesar do nome, as abas abaixo
+ * cobrem todas as gestões — a de cada projeto está nas colunas "Gestão - Venda"
+ * e "Gestão - Entrega". Não é por gestão, então fica fora de GESTOES.
+ */
+export const FONTE_ENTREGAS: FonteEntregas = {
+	spreadsheetId: "1F2kgDW-Q6vXqJM50WVFhzRly1iduw37Do1grD-YFPW8",
+	abaEntregues: "Projetos - Entregues",
+	abaEmExecucao: "Projetos - Atual",
+};
 
 export const GESTOES: Gestao[] = [
 	{
@@ -304,8 +317,30 @@ export const GESTOES: Gestao[] = [
 			ancoraGestao: "GESTÃO",
 			prefixoCiclo: "Ciclo",
 		},
+		faturamento: {
+			spreadsheetId: FATURAMENTO_2627,
+			abas: [
+				{ aba: "Visão Geral", coordenacao: null },
+				{ aba: "ACE", coordenacao: "ACE" },
+				{ aba: "CCE", coordenacao: "CCE" },
+				{ aba: "MNP", coordenacao: "MNP" },
+				{ aba: "PRO", coordenacao: "PRO" },
+				{ aba: "QAB", coordenacao: "QAB" },
+			],
+			metas: {
+				estrategia: "blocos",
+				spreadsheetId: FATURAMENTO_2627,
+				aba: "Metas por coordenação",
+				colunaBlocosB: 1, // B
+				colunaBlocosCiclo: 4, // E
+				ancoraMensal: "METAS",
+				ancoraFimMensal: "total",
+				prefixoCiclo: "Ciclo",
+			},
+		},
 		observacoes: [
 			"Diferente de 25/26, os rótulos de mês do bloco METAS já estão no ano certo (outubro/2026..setembro/2027). A regra de não derivar o ano do rótulo continua valendo.",
+			"Na planilha de faturamento, os blocos de ciclo se chamam 'Ciclo 1'..'Ciclo 4' e o 'total' do bloco mensal soma só os meses já definidos — por isso a meta de GESTÃO de faturamento não é gravada (ver sync-sheets.ts).",
 			"A aba 'Metas por coordenação' tem, à direita (colunas K em diante), tabelas de gestões antigas (15/16 a 20/21). Ficam fora das colunas B e E e não são lidas.",
 		],
 	},

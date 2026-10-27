@@ -22,6 +22,7 @@ import {
 	chaveProjeto,
 	mapearContratos,
 	mesParaData,
+	parsearDataBR,
 	normalizarCoordenacao,
 	normalizarNomeVendedor,
 	parsearValorBR,
@@ -750,6 +751,47 @@ describe("mapearContratos", () => {
 			}),
 		] as never);
 		expect(projetos[0].linha.fidelizacao).toBe(false);
+	});
+
+	it("guarda contratante, item da carta e data de assinatura", () => {
+		const { projetos } = mapearContratos(gestao(), [
+			linha({
+				mes: "outubro/2023",
+				projeto: "X",
+				coordenacao: "ACE",
+				contratante: " Sanson ",
+				itemDaCarta: "DI",
+				dataAssinatura: "05/10/2023",
+			}),
+		] as never);
+		expect(projetos[0].linha).toMatchObject({
+			contratante: "Sanson",
+			item_da_carta: "DI",
+			data_assinatura: "2023-10-05",
+		});
+		expect(projetos[0].camposPerdidos).toEqual([]);
+	});
+
+	it("data ilegível não descarta o contrato, mas fica registrada", () => {
+		const { projetos, rejeitados } = mapearContratos(gestao(), [
+			linha({ mes: "outubro/2023", projeto: "X", coordenacao: "ACE", dataAssinatura: "31/02/2023" }),
+		] as never);
+		expect(rejeitados).toHaveLength(0);
+		expect(projetos[0].linha.data_assinatura).toBeNull();
+		expect(projetos[0].camposPerdidos[0]).toMatch(/data ilegível/);
+	});
+})
+
+describe("parsearDataBR", () => {
+	it("vazio e o dia zero do Sheets são ausência, não erro", () => {
+		expect(parsearDataBR("")).toEqual({ data: null });
+		expect(parsearDataBR("30/12/1899")).toEqual({ data: null });
+	});
+	it("lê dd/mm/aaaa", () => {
+		expect(parsearDataBR("1/2/2024").data).toBe("2024-02-01");
+	});
+	it("recusa formato desconhecido", () => {
+		expect(parsearDataBR("2024-02-01").erro).toMatch(/ilegível/);
 	});
 })
 

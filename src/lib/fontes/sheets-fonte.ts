@@ -6,8 +6,10 @@
 import { google } from "googleapis";
 
 import { lerTabela } from "./tabela";
-import { lerMetas, type MetasLidas } from "./blocos";
-import type { Gestao, TabelaLida } from "./tipos";
+import { lerMetas, type MetaIlegivel, type MetasLidas } from "./blocos";
+import { lerGradeFaturamento, type FaturamentoLido } from "./faturamento";
+import { lerProjetos, type ProjetosLidos } from "./entregas";
+import type { FonteEntregas, Gestao, TabelaLida } from "./tipos";
 
 function clienteSheets() {
 	const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -80,4 +82,57 @@ export async function lerMetasDaGestao(gestao: Gestao): Promise<MetasLidas> {
 	});
 
 	return lerMetas(gestao, (resposta.data.values as string[][]) ?? []);
+}
+
+export interface FaturamentoDaGestao {
+	meses: FaturamentoLido[];
+	metas: MetasLidas;
+	ilegiveis: MetaIlegivel[];
+	avisos: string[];
+}
+
+/**
+ * Lê o faturamento e as metas de faturamento de uma gestão. Uma requisição só
+ * (batchGet) para as seis abas e a de metas: a cota do Sheets é por minuto, e o
+ * sync já lê contratos e metas de vendas na mesma rodada.
+ */
+export async function lerFaturamentoDaGestao(gestao: Gestao): Promise<FaturamentoDaGestao | null> {
+	const fonte = gestao.faturamento;
+	if (!fonte) return null;
+
+	const abas = [...fonte.abas.map((a) => a.aba), fonte.metas.aba];
+	const resposta = await clienteSheets().spreadsheets.values.batchGet({
+		spreadsheetId: fonte.spreadsheetId,
+		ranges: abas.map(rangeAba),
+		valueRenderOption: "FORMATTED_VALUE",
+	});
+	const grades = (resposta.data.valueRanges ?? []).map((v) => (v.values as string[][]) ?? []);
+
+	const meses: FaturamentoLido[] = [];
+	const ilegiveis: MetaIlegivel[] = [];
+	const avisos: string[] = [];
+	fonte.abas.forEach(({ aba, coordenacao }, i) => {
+		const lida = lerGradeFaturamento(gestao, fonte.spreadsheetId, aba, coordenacao, grades[i] ?? []);
+		meses.push(...lida.meses);
+		ilegiveis.push(...lida.ilegiveis);
+		avisos.push(...lida.avisos);
+	});
+
+	// A aba de metas de faturamento tem o layout da de vendas: o mesmo leitor serve.
+	const metas = lerMetas({ ...gestao, metas: fonte.metas }, grades[fonte.abas.length] ?? []);
+	return { meses, metas, ilegiveis, avisos };
+}
+
+/** As duas abas da planilha de projetos numa requisição (batchGet). */
+export async function lerEntregas(fonte: FonteEntregas): Promise<ProjetosLidos[]> {
+	const resposta = await clienteSheets().spreadsheets.values.batchGet({
+		spreadsheetId: fonte.spreadsheetId,
+		ranges: [rangeAba(fonte.abaEntregues), rangeAba(fonte.abaEmExecucao)],
+		valueRenderOption: "FORMATTED_VALUE",
+	});
+	const [entregues, atual] = (resposta.data.valueRanges ?? []).map((v) => (v.values as string[][]) ?? []);
+	return [
+		lerProjetos("entregue", fonte.spreadsheetId, fonte.abaEntregues, entregues ?? []),
+		lerProjetos("em_execucao", fonte.spreadsheetId, fonte.abaEmExecucao, atual ?? []),
+	];
 }

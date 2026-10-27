@@ -11,6 +11,12 @@ import { createClient } from "@supabase/supabase-js";
 import { GESTOES } from "@/lib/fontes/registry";
 import { todosOsPipes } from "@/lib/fontes/pipes";
 import { COBERTURAS } from "@/lib/fontes/cobertura";
+import {
+	buscarGrafias,
+	grafiasSemPessoa,
+	type GrafiaSemPessoa,
+} from "@/lib/pessoas";
+import { buscarVendasDoBanco } from "@/lib/supabase-vendas";
 
 function getSupabase() {
 	return createClient(
@@ -120,6 +126,7 @@ export interface EstadoAuditoria {
 	cobertura: CoberturaResumo[];
 	snapshots: SnapshotResumo[];
 	divergenciaMetas: DivergenciaMeta[];
+	grafiasSemPessoa: GrafiaSemPessoa[];
 	/** O que não pôde ser lido — nunca some em silêncio. */
 	indisponivel: string[];
 }
@@ -404,12 +411,22 @@ export async function coletarAuditoria(): Promise<EstadoAuditoria> {
 		}
 	}
 
+	// ── Grafias de responsável sem pessoa ────────────────────────
+	// Leituras que falham devolvem []: sem vendas, a lista sairia vazia e
+	// pareceria "tudo ligado". Por isso a ausência vira indisponível.
+	const [vendasCruas, grafias] = await Promise.all([
+		buscarVendasDoBanco({ crus: true }),
+		buscarGrafias(),
+	]);
+	if (vendasCruas.length === 0) indisponivel.push("grafias sem pessoa: vendas não lidas");
+
 	return {
 		execucoes,
 		pendencias,
 		cobertura,
 		snapshots,
 		divergenciaMetas,
+		grafiasSemPessoa: grafiasSemPessoa(vendasCruas, grafias),
 		indisponivel,
 	};
 }

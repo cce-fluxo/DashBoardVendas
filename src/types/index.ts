@@ -40,7 +40,8 @@ export interface Venda {
 	prazo: number;
 	valorContrato: number;
 	valorVendidoReal: number;
-	dataAssinaturaContrato?: Date;
+	/** "AAAA-MM-DD", como no banco. String de propósito: ver `mesDaData`. */
+	dataAssinatura?: string;
 	dataFinalizacaoEstimativa?: Date;
 	valorContratoParcelas: number;
 	precoPorSemana: number;

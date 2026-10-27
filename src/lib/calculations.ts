@@ -38,6 +38,18 @@ function somarValores(vendas: Venda[]): number {
 	return vendas.reduce((acc, v) => acc + v.valorVendidoReal, 0);
 }
 
+/**
+ * Valor que cada RESPONSÁVEL leva (ranking por vendedor e por canal).
+ *
+ * De 24/25 em diante é `valorContrato`. Até 23/24 a coluna "Valor contrato"
+ * das planilhas não é o valor do projeto (em 23/24 chega a R$ 41 mil contra
+ * R$ 3,7 mil vendidos de fato), então vale "Valor Vendido real". Decisão do dono
+ * do processo.
+ */
+export function valorDoResponsavel(v: { gestao: string; valorContrato: number; valorVendidoReal: number }): number {
+	return anoInicioGestao(v.gestao as PeriodoGestao) <= 2023 ? v.valorVendidoReal : v.valorContrato;
+}
+
 function apenasAssinadas(vendas: Venda[]): Venda[] {
 	return vendas.filter((v) => v.assinado);
 }
@@ -500,7 +512,7 @@ export function calcularKPIsPorVendedor(vendas: Venda[]): KPIsPorVendedor[] {
 			if (!mapaVendedor[resp]) {
 				mapaVendedor[resp] = { total: 0, quantidade: 0 };
 			}
-			mapaVendedor[resp].total += venda.valorContrato;
+			mapaVendedor[resp].total += valorDoResponsavel(venda);
 			mapaVendedor[resp].quantidade += 1;
 		});
 	});
@@ -524,7 +536,7 @@ export function calcularKPIsPorCanal(vendas: Venda[]) {
 	assinadas.forEach((v) => {
 		const canal = v.canalDeAquisicao || "Não informado";
 		if (!mapa[canal]) mapa[canal] = { total: 0, quantidade: 0 };
-		mapa[canal].total += v.valorContrato;
+		mapa[canal].total += valorDoResponsavel(v);
 		mapa[canal].quantidade += 1;
 	});
 
