@@ -227,6 +227,7 @@ resolveu. Detalhes das tabelas: [dados.md](dados.md).
 | `0014_faturamento.sql` | `faturamento_mes` e `meta_faturamento` |
 | `0015_entregas.sql` | `projeto_entrega` |
 | `0016_equipe_da_entrega.sql` | `equipe` em `projeto_entrega` |
+| `0017_planilhas_de_15_em_15.sql` | Planilhas a cada 15 min, 07–21h, por causa da TV |
 
 ## `docs/`
 

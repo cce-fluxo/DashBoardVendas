@@ -100,7 +100,7 @@ aparecem quando a gestão existir no registry.
    Os testes recusam ciclos com buraco ou sobreposição; o `verificar-registry`
    mostra contratos e metas extraídos da planilha real.
 6. **Publique** (merge na `main`).
-7. **Carregue:** clique em **Atualizar** (ou espere a carga das 06:23). Para
+7. **Carregue:** clique em **Atualizar** (ou espere a próxima carga, a cada 15 min entre 07h e 21h). Para
    conferir antes de gravar:
 
    ```bash
@@ -188,7 +188,7 @@ Depois de trocar qualquer variável na Vercel, faça **Redeploy**.
 
 ## Aplicar uma migration
 
-1. Crie o próximo arquivo numerado em `supabase/migrations/` (`0017_<assunto>.sql`),
+1. Crie o próximo arquivo numerado em `supabase/migrations/` (`0018_<assunto>.sql`),
    começando com um comentário que explique o problema e a decisão, como as
    anteriores.
 2. Escreva dentro de `BEGIN; ... COMMIT;`.

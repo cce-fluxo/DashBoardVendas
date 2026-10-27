@@ -105,15 +105,15 @@ sequenceDiagram
   Note over C,D: pg_net não espera a resposta. Ela fica em net._http_response,<br/>visível pela view public.disparo_recente
 ```
 
-A sincronização das planilhas segue o mesmo desenho (`/api/cron/sheets`, uma vez
-por dia): lê a aba **Contratos** pelo nome dos cabeçalhos, lê a aba **Metas por
+A sincronização das planilhas segue o mesmo desenho (`/api/cron/sheets`, a cada
+15 min entre 07h e 21h): lê a aba **Contratos** pelo nome dos cabeçalhos, lê a aba **Metas por
 coordenação** como blocos, grava `projeto_vendido` e `meta` e apaga o que sumiu
 da planilha **só na gestão que acabou de ser lida** (e nunca quando a leitura
 volta vazia).
 
 | Disparo        | Quem                                                  | Frequência                                                         | Escopo                                                                 |
 | -------------- | ----------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Principal      | `pg_cron` no Supabase                                 | Pipefy `7,37 * * * *` · Planilhas `23 9 * * *` (06:23 em Brasília) | Pipes ativos, fases não terminais, só cards alterados · Gestão vigente |
+| Principal      | `pg_cron` no Supabase                                 | Pipefy `7,37 * * * *` · Planilhas `4,19,34,49 10-23 * * *` (15 em 15 min, 07–21h em Brasília) | Pipes ativos, fases não terminais, só cards alterados · Gestão vigente |
 | Reserva        | GitHub Actions (`.github/workflows/cron.yml`)         | Pipefy a cada 6 h · Planilhas 1×/dia às 15:47 UTC                  | Igual ao principal                                                     |
 | Manual         | Botão **Atualizar** → `POST /api/dashboard/atualizar` | Sob demanda, com trava de 60 s                                     | Igual ao principal, sem segredo                                        |
 | Carga completa | `scripts/backfill-*.ts`, à mão                        | Quando precisa reparar                                             | Todos os pipes e todas as gestões                                      |
