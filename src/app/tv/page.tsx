@@ -6,11 +6,17 @@
 // Os dados vêm de /api/tv a cada 5 min. Falha na busca MANTÉM o último dado
 // bom — a TV não pode ficar em branco por uma queda de rede — e a idade do dado
 // no rodapé mostra que ele envelheceu.
+//
+// Contrato que a TV ainda não viu dispara a comemoração (Comemoracao.tsx). O
+// que já foi visto fica no localStorage, para recarregar a página não comemorar
+// de novo; TV sem nada guardado semeia em silêncio na primeira busca.
+// `/tv?comemorar` comemora o mais recente, para conferir o visual.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pause, Play, RefreshCw } from "lucide-react";
 
-import type { TelaTv, TvData } from "@/lib/tv";
+import { chaveDoFechado, fechadosNovos, type TelaTv, type TvData, type TvFechado } from "@/lib/tv";
+import { Comemoracao } from "@/components/tv/Comemoracao";
 import { EntregasTv } from "@/components/tv/EntregasTv";
 import { FechadosTv } from "@/components/tv/FechadosTv";
 import { FunilTv } from "@/components/tv/FunilTv";
@@ -44,19 +50,21 @@ function useEscala() {
 	return escala;
 }
 
-function useDados() {
+function useDados(aoChegar: (r: Resposta) => void) {
 	const [dados, setDados] = useState<Resposta | null>(null);
 	const [falhou, setFalhou] = useState(false);
 	const buscar = useCallback(async () => {
 		try {
 			const r = await fetch("/api/tv", { cache: "no-store" });
 			if (!r.ok) throw new Error(String(r.status));
-			setDados((await r.json()) as Resposta);
+			const resposta = (await r.json()) as Resposta;
+			setDados(resposta);
+			aoChegar(resposta);
 			setFalhou(false);
 		} catch {
 			setFalhou(true);
 		}
-	}, []);
+	}, [aoChegar]);
 	useEffect(() => {
 		const primeiro = setTimeout(buscar, 0);
 		const id = setInterval(buscar, BUSCA_MS);
@@ -66,6 +74,53 @@ function useDados() {
 		};
 	}, [buscar]);
 	return { dados, falhou, buscar };
+}
+
+const CHAVE_VISTOS = "tv-fechados-vistos";
+
+function lerVistos(): string[] {
+	try {
+		return JSON.parse(localStorage.getItem(CHAVE_VISTOS) ?? "[]") as string[];
+	} catch {
+		return [];
+	}
+}
+
+function gravarVistos(vistos: Set<string>) {
+	try {
+		// Só os últimos: a lista de fechados tem 4, nunca precisa de mais que isso.
+		localStorage.setItem(CHAVE_VISTOS, JSON.stringify([...vistos].slice(-200)));
+	} catch {
+		// Sem storage, vale a memória da aba (o ref): recarregar semeia de novo.
+	}
+}
+
+/** Fila de contratos novos a comemorar, um de cada vez. */
+function useComemoracao() {
+	const vistos = useRef<Set<string> | null>(null);
+	const [fila, setFila] = useState<TvFechado[]>([]);
+
+	const aoChegar = useCallback((r: Resposta) => {
+		const fechados = r.fechados.fechados;
+		if (!vistos.current) {
+			vistos.current = new Set(lerVistos());
+			const forcar = new URLSearchParams(window.location.search).has("comemorar");
+			if (forcar && fechados[0]) setFila([fechados[0]]);
+			if (vistos.current.size === 0) {
+				for (const f of fechados) vistos.current.add(chaveDoFechado(f));
+				gravarVistos(vistos.current);
+				return;
+			}
+		}
+		const novos = fechadosNovos(vistos.current, fechados);
+		if (!novos.length) return;
+		for (const f of novos) vistos.current.add(chaveDoFechado(f));
+		gravarVistos(vistos.current);
+		setFila((atual) => [...atual, ...novos]);
+	}, []);
+
+	const proximo = useCallback(() => setFila((atual) => atual.slice(1)), []);
+	return { atual: fila[0] ?? null, aoChegar, proximo };
 }
 
 /**
@@ -149,7 +204,8 @@ function Tela({ tela, dados }: { tela: TelaTv; dados: TvData }) {
 
 export default function PainelTv() {
 	const escala = useEscala();
-	const { dados, falhou, buscar } = useDados();
+	const comemoracao = useComemoracao();
+	const { dados, falhou, buscar } = useDados(comemoracao.aoChegar);
 	const telas = dados?.telas ?? [];
 
 	const [ativa, setAtiva] = useState(0);
@@ -200,6 +256,7 @@ export default function PainelTv() {
 					height: 1080,
 					transform: `scale(${escala})`,
 					transformOrigin: "top left",
+					position: "relative",
 					background: "#FFFFFF",
 					display: "flex",
 					flexDirection: "column",
@@ -255,6 +312,10 @@ export default function PainelTv() {
 						</div>
 					</div>
 				</footer>
+
+				{comemoracao.atual && (
+					<Comemoracao key={chaveDoFechado(comemoracao.atual)} f={comemoracao.atual} aoTerminar={comemoracao.proximo} />
+				)}
 			</div>
 		</div>
 	);

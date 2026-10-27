@@ -175,6 +175,25 @@ export interface TvData {
 	entregas: TvEntregas;
 }
 
+// ─── Comemoração de contrato novo ─────────────────────────────────
+
+/** Sem valor nem data: corrigir o valor na planilha não é venda nova. */
+export function chaveDoFechado(f: TvFechado): string {
+	return `${f.coordenacao}|${f.projeto}`;
+}
+
+const DIAS_PARA_COMEMORAR = 7;
+
+/**
+ * Contratos que a TV ainda não viu, do mais antigo ao mais novo (ordem da
+ * fila). Só recentes: linha antiga apagada e recolocada na planilha não é venda.
+ */
+export function fechadosNovos(vistos: Set<string>, fechados: TvFechado[]): TvFechado[] {
+	return fechados
+		.filter((f) => !vistos.has(chaveDoFechado(f)) && f.diasAtras !== null && f.diasAtras <= DIAS_PARA_COMEMORAR)
+		.reverse();
+}
+
 // ─── Calendário ───────────────────────────────────────────────────
 
 /**

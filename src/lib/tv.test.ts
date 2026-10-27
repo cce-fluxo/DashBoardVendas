@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Venda } from "@/types";
 import type { CardComHistorico } from "./supabase-funil";
 import type { ProjetoEntrega } from "./supabase-vendas";
-import { cicloVigente, montarTv } from "./tv";
+import { chaveDoFechado, cicloVigente, fechadosNovos, montarTv, type TvFechado } from "./tv";
 
 // 26/10/2026, meio-dia em Brasília: gestão 26/27, ciclo Gambito (out–dez).
 const HOJE = new Date("2026-10-26T15:00:00.000Z");
@@ -245,5 +245,21 @@ describe("equipe das entregas", () => {
 			{ nome: "Gabriel Pereira", iniciais: "GP", foto: "http://foto" },
 			{ nome: "Fabricio Moreira", iniciais: "FM", foto: null },
 		]);
+	});
+});
+
+describe("fechadosNovos", () => {
+	const f = (projeto: string, diasAtras: number | null, valor = 10_000): TvFechado => ({
+		cliente: projeto, projeto, valor, data: "2026-10-20", dataExata: diasAtras !== null, diasAtras, responsaveis: [], coordenacao: "CCE",
+	});
+	const lista = [f("Novo", 0), f("Visto", 2), f("Velho", 20), f("SoMes", null), f("Ontem", 1)].sort((a, b) => (a.diasAtras ?? 99) - (b.diasAtras ?? 99));
+
+	it("só o que não foi visto e é recente, do mais antigo ao mais novo", () => {
+		const vistos = new Set([chaveDoFechado(f("Visto", 2))]);
+		expect(fechadosNovos(vistos, lista).map((x) => x.projeto)).toEqual(["Ontem", "Novo"]);
+	});
+
+	it("valor corrigido do mesmo contrato não é venda nova", () => {
+		expect(fechadosNovos(new Set([chaveDoFechado(f("Novo", 0))]), [f("Novo", 0, 99_000)])).toEqual([]);
 	});
 });
