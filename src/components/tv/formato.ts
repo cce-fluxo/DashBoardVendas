@@ -8,7 +8,8 @@ import { COORD } from "@/lib/colors";
 export const COR = {
 	texto: "#111111",
 	secundario: "#6B6B6B",
-	terciario: "#9B9B9B",
+	// Mais escuro que o Figma (#9B9B9B): a TV da sede é antiga e lava o cinza.
+	terciario: "#858585",
 	linha: "#E8E8E8",
 	marca: "#F58332",
 } as const;

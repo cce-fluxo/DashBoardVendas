@@ -14,7 +14,7 @@ import {
 } from "@/lib/calculations-funil";
 import { calcularKPIsPorVendedor, calcularKPIsVendas } from "@/lib/calculations";
 import { buscarGestao, idsDeGestao } from "@/lib/fontes/registry";
-import { MESES_DA_GESTAO, mesesDoCiclo, posicaoNaGestao } from "@/lib/fontes/calendario";
+import { mesesDoCiclo } from "@/lib/fontes/calendario";
 import { metaDoPeriodo, type SelecaoPeriodo } from "@/lib/metas-periodo";
 import {
 	gestaoAnterior,
@@ -83,14 +83,11 @@ export interface TvMetas {
 	semana: number;
 	semanas: number;
 	faltamDias: number;
-	/** Posição de hoje no ciclo, 0–1: o marcador "hoje" da faixa. */
-	hojeNoCiclo: number;
+	/** Quanto do mês já passou, 0–1: onde a barra do mês "deveria" estar hoje. */
+	hojeNoMes: number;
 	/** Os meses do ciclo, na ordem. */
 	meses: TvMetaMes[];
 	mesAtual: number;
-	/** Os 12 meses da gestão: realizado só até o mês atual, previsto em todos. */
-	grafico: { abrev: string; realizado: number | null; previsto: number | null }[];
-	mesAtualNaGestao: number;
 	vendidoCiclo: number;
 	metaVendasCiclo: number | null;
 	metaFaturamentoCiclo: number | null;
@@ -432,8 +429,10 @@ function montarMetas(
 			.filter((f) => f.gestao === gestao && f.coordenacao === null)
 			.map((f) => [f.mes.slice(5, 7), f]),
 	);
-	const mesHoje = diaBrasil(hoje).slice(5, 7);
-	const mesAtualNaGestao = posicaoNaGestao(mesHoje);
+	const hojeBr = diaBrasil(hoje);
+	const mesHoje = hojeBr.slice(5, 7);
+	// Dia 0 do mês seguinte = último dia deste.
+	const diasNoMes = new Date(Number(hojeBr.slice(0, 4)), Number(mesHoje), 0).getDate();
 	const meta = (lista: MetaPeriodo[], sel: SelecaoPeriodo) => metaDoPeriodo(lista, sel)?.metaVendas ?? null;
 
 	const mesesCiclo = mesesDoCicloDaGestao(ciclo, gestao);
@@ -459,16 +458,9 @@ function montarMetas(
 		semana: Math.max(1, Math.ceil(decorrido / SEMANA_MS)),
 		semanas: Math.ceil(total / SEMANA_MS),
 		faltamDias: Math.ceil((total - decorrido) / 86_400_000),
-		hojeNoCiclo: total > 0 ? decorrido / total : 0,
+		hojeNoMes: Number(hojeBr.slice(8, 10)) / diasNoMes,
 		meses,
 		mesAtual: Math.max(0, mesesCiclo.indexOf(mesHoje)),
-		grafico: MESES_DA_GESTAO.map((mm, i) => ({
-			abrev: NOMES_MES[mm].slice(0, 3),
-			// Realizado de mês futuro é 0 na planilha, não "nada faturado ainda".
-			realizado: i <= mesAtualNaGestao ? (fat.get(mm)?.realizado ?? null) : null,
-			previsto: fat.get(mm)?.previsto ?? null,
-		})),
-		mesAtualNaGestao,
 		vendidoCiclo,
 		metaVendasCiclo,
 		metaFaturamentoCiclo: meta(metasFaturamento, { gestao, tipo: "ciclo", ciclo }),
