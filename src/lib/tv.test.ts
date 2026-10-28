@@ -183,8 +183,9 @@ describe("metas", () => {
 		expect(tv.metas.mesAtual).toBe(0);
 	});
 
-	it("quanto do mês passou, no dia de Brasília", () => {
-		expect(tv.metas.hojeNoMes).toBeCloseTo(26 / 31);
+	it("gráfico não mostra realizado de mês futuro", () => {
+		expect(tv.metas.grafico[0].realizado).toBe(88_000);
+		expect(tv.metas.grafico[1]).toMatchObject({ realizado: null, previsto: 72_000 });
 	});
 
 	it("sem faturamento a tela sai do ciclo", () => {

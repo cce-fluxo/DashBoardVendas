@@ -75,12 +75,19 @@ export function exigirLeitura(listas: Record<string, readonly unknown[]>): void 
 	}
 }
 
-/** Envolve o cálculo de uma rota no cache, com a tag que a sincronização invalida. */
+/**
+ * Envolve o cálculo de uma rota no cache, com a tag que a sincronização invalida.
+ *
+ * O commit entra na chave: o cache sobrevive a deploy e a reinício, e uma
+ * resposta guardada pela versão anterior, com outro formato, derrubava a tela
+ * nova (TypeError em `m.grafico` no /tv). Local não tem commit — lá, Atualizar
+ * limpa.
+ */
 export function cacheado<A extends unknown[], R>(
 	nome: string,
 	calcular: (...args: A) => Promise<R>,
 ): (...args: A) => Promise<R> {
-	return unstable_cache(calcular, [nome], {
+	return unstable_cache(calcular, [nome, process.env.VERCEL_GIT_COMMIT_SHA ?? "local"], {
 		tags: [TAG_DADOS],
 		revalidate: VALIDADE_MAXIMA_SEGUNDOS,
 	});
