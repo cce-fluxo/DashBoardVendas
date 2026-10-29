@@ -13,6 +13,7 @@
 // `/tv?comemorar` comemora o mais recente, para conferir o visual.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Pause, Play, RefreshCw } from "lucide-react";
 
 import { chaveDoFechado, fechadosNovos, type TelaTv, type TvData, type TvFechado } from "@/lib/tv";
@@ -263,7 +264,8 @@ export default function PainelTv() {
 				}}
 			>
 				<header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 80, flexShrink: 0, padding: "0 64px", borderBottom: `1px solid ${COR.linha}` }}>
-					<span style={{ fontSize: 28, fontWeight: 500, color: COR.texto, letterSpacing: "-0.02em" }}>Fluxo</span>
+					{/* Versão preta: a TV é sempre tema claro. O PNG tem margem branca embutida: 72px e o recuo compensam. */}
+					<Image src="/logo-fluxo-preta.png" alt="Fluxo" width={72} height={72} priority style={{ marginLeft: -10 }} />
 					<span style={{ fontSize: 18, color: COR.terciario }}>{tela ? NOMES[tela] : ""}</span>
 				</header>
 
