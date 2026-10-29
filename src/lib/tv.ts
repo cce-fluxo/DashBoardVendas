@@ -598,7 +598,8 @@ function montarCoordenacoes(
 	return {
 		ciclo: buscarGestao(gestao).ciclos.find((c) => c.id === ciclo)!.rotulo,
 		hojeNoCiclo,
-		coordenacoes: COORDENACOES.map((coord) => {
+		// Em ordem alfabética, não na de COORDENACOES: é a ordem que a sede procura.
+		coordenacoes: [...COORDENACOES].sort().map((coord) => {
 			const linhas = fat.filter((f) => f.coordenacao === coord);
 			const faturado = linhas.reduce((s, f) => s + (f.realizado ?? 0), 0);
 			return {
