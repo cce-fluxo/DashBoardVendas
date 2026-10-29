@@ -25,10 +25,9 @@ function Celula({ valor, pendente = 0, alvo, cor, hoje }: { valor: number; pende
 			</span>
 			<div style={{ flex: 1 }}>
 				<div style={{ position: "relative", height: 22, borderRadius: 11, background: "#F1F1F1", overflow: "hidden" }}>
+					{/* O previsto vai por baixo, do zero até o fim: assim as duas pontas ficam redondas. */}
+					{p > 0 && <div style={{ position: "absolute", inset: 0, width: `${c + p}%`, background: `${cor}55`, borderRadius: 11 }} />}
 					<div style={{ position: "absolute", inset: 0, width: `${c}%`, background: cor, borderRadius: 11 }} />
-					{p > 0 && (
-						<div style={{ position: "absolute", top: 0, bottom: 0, left: `${c}%`, width: `${p}%`, background: `${cor}55` }} />
-					)}
 				</div>
 				<div style={{ position: "relative", height: 0 }}>
 					<div style={{ position: "absolute", left: `${hoje * 100}%`, top: -30, height: 38, borderLeft: `2px dashed ${COR.terciario}` }} />
