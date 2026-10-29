@@ -153,6 +153,12 @@ export interface TvFechados {
 	gestao: string;
 	gestaoAnterior: string | null;
 	fechados: TvFechado[];
+	/**
+	 * Candidatos à comemoração: assinados nos últimos 7 dias ou, sem data de
+	 * assinatura, do mês corrente. Não só os 4 da tela — linha recém-lançada na
+	 * planilha costuma vir sem data, e sem data ela não entra entre os últimos.
+	 */
+	candidatos: TvFechado[];
 	totalGestao: number;
 	/** Contratos da gestão anterior até o mesmo dia. null sem dado. */
 	anteriorMesmoPonto: number | null;
@@ -186,12 +192,11 @@ const DIAS_PARA_COMEMORAR = 7;
 
 /**
  * Contratos que a TV ainda não viu, do mais antigo ao mais novo (ordem da
- * fila). Só recentes: linha antiga apagada e recolocada na planilha não é venda.
+ * fila). Sem valor ainda (linha lançada antes do valor) espera: quem chama só
+ * marca como visto o que devolveu, e ele comemora quando o valor chegar.
  */
-export function fechadosNovos(vistos: Set<string>, fechados: TvFechado[]): TvFechado[] {
-	return fechados
-		.filter((f) => !vistos.has(chaveDoFechado(f)) && f.diasAtras !== null && f.diasAtras <= DIAS_PARA_COMEMORAR)
-		.reverse();
+export function fechadosNovos(vistos: Set<string>, candidatos: TvFechado[]): TvFechado[] {
+	return candidatos.filter((f) => !vistos.has(chaveDoFechado(f)) && f.valor > 0).reverse();
 }
 
 // ─── Calendário ───────────────────────────────────────────────────
@@ -359,11 +364,10 @@ function montarFechados(
 	const diasEntreDatas = (a: string, b: string) =>
 		Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 
-	const fechados = daGestao
+	const todos = daGestao
 		.map((v) => ({ v, ...dataDe(v, anoInicio) }))
 		.sort((a, b) => b.data.localeCompare(a.data))
-		.slice(0, 4)
-		.map(({ v, data, exata }) => ({
+		.map(({ v, data, exata }): TvFechado => ({
 			// Contratante só existe a partir de 25/26.
 			cliente: v.contratante ?? v.projetoAssinado,
 			projeto: v.projetoAssinado,
@@ -376,6 +380,11 @@ function montarFechados(
 				.map((nome) => pessoaTv(nome, fotos)),
 			coordenacao: v.coordenacao,
 		}));
+	// Linha antiga apagada e recolocada na planilha não é venda: só recentes.
+	// Recente sem data = do mês corrente (dataDe põe o dia 1º).
+	const candidatos = todos.filter((f) =>
+		f.dataExata ? f.diasAtras! <= DIAS_PARA_COMEMORAR : f.data.slice(0, 7) === hojeBr.slice(0, 7),
+	);
 
 	// "Mesma altura da gestão anterior": mesmo número de dias desde 01/10. Só
 	// compara se a gestão anterior tem data de assinatura — por mês empataria o
@@ -394,7 +403,8 @@ function montarFechados(
 	return {
 		gestao,
 		gestaoAnterior: idsDeGestao().includes(ant) ? ant : null,
-		fechados,
+		fechados: todos.slice(0, 4),
+		candidatos,
 		totalGestao: daGestao.length,
 		anteriorMesmoPonto,
 		valorCiclo: calcularKPIsVendas(vendasDoCiclo(vendas, gestao, ciclo), null).totalVendido,

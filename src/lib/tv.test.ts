@@ -249,17 +249,33 @@ describe("equipe das entregas", () => {
 });
 
 describe("fechadosNovos", () => {
-	const f = (projeto: string, diasAtras: number | null, valor = 10_000): TvFechado => ({
-		cliente: projeto, projeto, valor, data: "2026-10-20", dataExata: diasAtras !== null, diasAtras, responsaveis: [], coordenacao: "CCE",
-	});
-	const lista = [f("Novo", 0), f("Visto", 2), f("Velho", 20), f("SoMes", null), f("Ontem", 1)].sort((a, b) => (a.diasAtras ?? 99) - (b.diasAtras ?? 99));
-
-	it("só o que não foi visto e é recente, do mais antigo ao mais novo", () => {
-		const vistos = new Set([chaveDoFechado(f("Visto", 2))]);
-		expect(fechadosNovos(vistos, lista).map((x) => x.projeto)).toEqual(["Ontem", "Novo"]);
+	const f = (projeto: string, valor = 10_000): TvFechado => ({
+		cliente: projeto, projeto, valor, data: "2026-10-20", dataExata: true, diasAtras: 0, responsaveis: [], coordenacao: "CCE",
 	});
 
-	it("valor corrigido do mesmo contrato não é venda nova", () => {
-		expect(fechadosNovos(new Set([chaveDoFechado(f("Novo", 0))]), [f("Novo", 0, 99_000)])).toEqual([]);
+	it("o que não foi visto, do mais antigo ao mais novo", () => {
+		const vistos = new Set([chaveDoFechado(f("Visto"))]);
+		expect(fechadosNovos(vistos, [f("Novo"), f("Visto"), f("Ontem")]).map((x) => x.projeto)).toEqual(["Ontem", "Novo"]);
+	});
+
+	it("sem valor ainda espera; valor corrigido de contrato visto não é venda nova", () => {
+		expect(fechadosNovos(new Set(), [f("Rascunho", 0)])).toEqual([]);
+		expect(fechadosNovos(new Set([chaveDoFechado(f("Novo"))]), [f("Novo", 99_000)])).toEqual([]);
+	});
+});
+
+describe("montarTv · candidatos à comemoração", () => {
+	it("recentes com data e, sem data, só os do mês corrente", () => {
+		const tv = montarTv(
+			[
+				venda({ projetoAssinado: "Hoje", dataAssinatura: "2026-10-26" }),
+				venda({ projetoAssinado: "Velho", dataAssinatura: "2026-10-05" }),
+				venda({ projetoAssinado: "SemData", mes: "10" }),
+				venda({ projetoAssinado: "SemDataNov", mes: "11" }),
+			],
+			[],
+			HOJE,
+		);
+		expect(tv.fechados.candidatos.map((c) => c.projeto).sort()).toEqual(["Hoje", "SemData"]);
 	});
 });

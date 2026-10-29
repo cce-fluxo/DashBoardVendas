@@ -67,7 +67,7 @@ testáveis sem rede; quem faz rede está isolado em poucos arquivos (`sync-*.ts`
 | `dashboard/vendedores/page.tsx` | **Vendedores**: ranking por volume vendido no período |
 | `dashboard/metas/page.tsx` | **Metas**: atingimento geral e por coordenação |
 | `dashboard/auditoria/page.tsx` | **Auditoria**: última carga de cada fonte, rejeições, cobertura, snapshots, divergência entre séries de meta, responsáveis sem pessoa, "Conferir um número" |
-| `tv/layout.tsx`, `tv/page.tsx` | **Painel de TV**: canvas 1920×1080, telas girando a cada 18 s (componentes em `src/components/tv/`). Contrato novo (não visto por este navegador, ≤ 7 dias) toma a tela por 12 s em `Comemoracao.tsx`; `/tv?comemorar` mostra com o mais recente. Desenho no Figma Make `vMPbgU4OPKh16hHZZVJfXf` |
+| `tv/layout.tsx`, `tv/page.tsx` | **Painel de TV**: canvas 1920×1080, telas girando a cada 18 s (componentes em `src/components/tv/`). Contrato novo (não visto por este navegador; assinado há ≤ 7 dias ou, sem data, do mês corrente; com valor) toma a tela por 12 s em `Comemoracao.tsx`; `/tv?comemorar` mostra com o mais recente. Teclas: setas trocam de tela, espaço pausa, R recarrega das fontes. Desenho no Figma Make `vMPbgU4OPKh16hHZZVJfXf` |
 
 ### Rotas de API
 

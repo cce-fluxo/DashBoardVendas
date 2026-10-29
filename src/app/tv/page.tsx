@@ -11,6 +11,8 @@
 // que já foi visto fica no localStorage, para recarregar a página não comemorar
 // de novo; TV sem nada guardado semeia em silêncio na primeira busca.
 // `/tv?comemorar` comemora o mais recente, para conferir o visual.
+//
+// Teclado: setas trocam de tela, espaço pausa, R recarrega das fontes.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
@@ -54,6 +56,7 @@ function useEscala() {
 function useDados(aoChegar: (r: Resposta) => void) {
 	const [dados, setDados] = useState<Resposta | null>(null);
 	const [falhou, setFalhou] = useState(false);
+	const [buscadoEm, setBuscadoEm] = useState<Date | null>(null);
 	const buscar = useCallback(async () => {
 		try {
 			const r = await fetch("/api/tv", { cache: "no-store" });
@@ -61,6 +64,7 @@ function useDados(aoChegar: (r: Resposta) => void) {
 			const resposta = (await r.json()) as Resposta;
 			setDados(resposta);
 			aoChegar(resposta);
+			setBuscadoEm(new Date());
 			setFalhou(false);
 		} catch {
 			setFalhou(true);
@@ -74,7 +78,7 @@ function useDados(aoChegar: (r: Resposta) => void) {
 			clearInterval(id);
 		};
 	}, [buscar]);
-	return { dados, falhou, buscar };
+	return { dados, falhou, buscadoEm, buscar };
 }
 
 const CHAVE_VISTOS = "tv-fechados-vistos";
@@ -89,7 +93,7 @@ function lerVistos(): string[] {
 
 function gravarVistos(vistos: Set<string>) {
 	try {
-		// Só os últimos: a lista de fechados tem 4, nunca precisa de mais que isso.
+		// Só os últimos: candidatos são os de uma semana, nunca chegam perto disso.
 		localStorage.setItem(CHAVE_VISTOS, JSON.stringify([...vistos].slice(-200)));
 	} catch {
 		// Sem storage, vale a memória da aba (o ref): recarregar semeia de novo.
@@ -102,18 +106,20 @@ function useComemoracao() {
 	const [fila, setFila] = useState<TvFechado[]>([]);
 
 	const aoChegar = useCallback((r: Resposta) => {
-		const fechados = r.fechados.fechados;
+		const { fechados, candidatos } = r.fechados;
 		if (!vistos.current) {
 			vistos.current = new Set(lerVistos());
 			const forcar = new URLSearchParams(window.location.search).has("comemorar");
 			if (forcar && fechados[0]) setFila([fechados[0]]);
 			if (vistos.current.size === 0) {
-				for (const f of fechados) vistos.current.add(chaveDoFechado(f));
+				// Semeia só o que comemoraria agora: linha ainda sem valor fica de
+				// fora e comemora quando o valor chegar.
+				for (const f of fechadosNovos(vistos.current, candidatos)) vistos.current.add(chaveDoFechado(f));
 				gravarVistos(vistos.current);
 				return;
 			}
 		}
-		const novos = fechadosNovos(vistos.current, fechados);
+		const novos = fechadosNovos(vistos.current, candidatos);
 		if (!novos.length) return;
 		for (const f of novos) vistos.current.add(chaveDoFechado(f));
 		gravarVistos(vistos.current);
@@ -125,22 +131,32 @@ function useComemoracao() {
 }
 
 /**
- * Atualizar escondido: quase da cor do fundo, de propósito — quem sabe onde
- * fica usa, quem olha a TV não vê. Vai às fontes como o ↻ do /dashboard
- * (mesmo cooldown, mesma rota) e depois rebusca /api/tv.
+ * Vai às fontes como o ↻ do /dashboard (mesmo cooldown, mesma rota) e depois
+ * rebusca /api/tv. Sem isto, contrato lançado agora espera o próximo agendamento.
  */
-function Atualizar({ depois }: { depois: () => Promise<void> }) {
+function useAtualizar(buscar: () => Promise<void>) {
 	const [rodando, setRodando] = useState(false);
-	const clicar = async () => {
-		if (rodando) return;
+	const emCurso = useRef(false);
+	const atualizar = useCallback(async () => {
+		if (emCurso.current) return;
+		emCurso.current = true;
 		setRodando(true);
 		try {
 			await fetch("/api/dashboard/atualizar", { method: "POST" });
-			await depois();
+			await buscar();
 		} finally {
+			emCurso.current = false;
 			setRodando(false);
 		}
-	};
+	}, [buscar]);
+	return { rodando, atualizar };
+}
+
+/**
+ * Atualizar escondido: quase da cor do fundo, de propósito — quem sabe onde
+ * fica usa, quem olha a TV não vê. A tecla R faz o mesmo.
+ */
+function Atualizar({ rodando, clicar }: { rodando: boolean; clicar: () => void }) {
 	return (
 		<button
 			onClick={clicar}
@@ -180,16 +196,28 @@ function Relogio() {
 	);
 }
 
-function IdadeDoDado({ dados, falhou }: { dados: Resposta | null; falhou: boolean }) {
-	if (!dados) return null;
-	const hora = dados.ultimaAtualizacao
-		? new Date(dados.ultimaAtualizacao).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-		: "—";
-	const atrasado = dados.dadoVelho || falhou;
+const horaCurta = (d: Date) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+/**
+ * Hora da última busca boa da TV, que anda de 5 em 5 min — "dados de" com a
+ * hora da sincronização mais atrasada (o Pipefy, de 30 em 30) parecia TV
+ * parada. A hora da fonte só aparece quando ela atrasou de verdade.
+ */
+function IdadeDoDado({ dados, falhou, buscadoEm, atualizando }: { dados: Resposta | null; falhou: boolean; buscadoEm: Date | null; atualizando: boolean }) {
+	if (atualizando) return <span style={{ fontSize: 18, color: COR.texto }}>atualizando…</span>;
+	if (!dados || !buscadoEm) return null;
+	if (dados.dadoVelho || falhou) {
+		const fonte = dados.ultimaAtualizacao ? horaCurta(new Date(dados.ultimaAtualizacao)) : "—";
+		return (
+			<span style={{ fontSize: 18, color: COR.texto }}>
+				dados atrasados · {falhou ? "sem conexão desde " : "fonte de "}
+				<span style={NUMERO}>{falhou ? horaCurta(buscadoEm) : fonte}</span>
+			</span>
+		);
+	}
 	return (
-		<span style={{ fontSize: 18, color: atrasado ? COR.texto : COR.terciario }}>
-			{atrasado ? "dados atrasados · " : "dados de "}
-			<span style={NUMERO}>{hora}</span>
+		<span style={{ fontSize: 18, color: COR.terciario }}>
+			atualizado às <span style={NUMERO}>{horaCurta(buscadoEm)}</span>
 		</span>
 	);
 }
@@ -206,7 +234,8 @@ function Tela({ tela, dados }: { tela: TelaTv; dados: TvData }) {
 export default function PainelTv() {
 	const escala = useEscala();
 	const comemoracao = useComemoracao();
-	const { dados, falhou, buscar } = useDados(comemoracao.aoChegar);
+	const { dados, falhou, buscadoEm, buscar } = useDados(comemoracao.aoChegar);
+	const { rodando: atualizando, atualizar } = useAtualizar(buscar);
 	const telas = dados?.telas ?? [];
 
 	const [ativa, setAtiva] = useState(0);
@@ -233,21 +262,22 @@ export default function PainelTv() {
 	const indice = telas.length ? ativa % telas.length : 0;
 	const tela = telas[indice];
 
-	// Setas navegam como slide (e reiniciam os 18 s da tela); espaço pausa.
+	// Setas navegam como slide (e reiniciam os 18 s da tela); espaço pausa;
+	// R recarrega das fontes (o ↻ escondido do rodapé).
 	useEffect(() => {
 		const n = telas.length;
 		const tecla = (e: KeyboardEvent) => {
-			if (n < 2 && e.key !== " ") return;
-			if (e.key === "ArrowRight") irPara((indice + 1) % n);
-			else if (e.key === "ArrowLeft") irPara((indice - 1 + n) % n);
+			if (e.key === "r" || e.key === "R") void atualizar();
 			else if (e.key === " ") {
 				e.preventDefault();
 				setPausado((p) => !p);
-			}
+			} else if (n < 2) return;
+			else if (e.key === "ArrowRight") irPara((indice + 1) % n);
+			else if (e.key === "ArrowLeft") irPara((indice - 1 + n) % n);
 		};
 		window.addEventListener("keydown", tecla);
 		return () => window.removeEventListener("keydown", tecla);
-	}, [indice, telas.length, irPara]);
+	}, [indice, telas.length, irPara, atualizar]);
 
 	return (
 		<div style={{ width: "100vw", height: "56.25vw", overflow: "hidden", position: "relative" }}>
@@ -282,8 +312,8 @@ export default function PainelTv() {
 				<footer style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 80, flexShrink: 0, padding: "0 64px", borderTop: `1px solid ${COR.linha}` }}>
 					<div style={{ display: "flex", alignItems: "baseline", gap: 32 }}>
 						<Relogio />
-						<IdadeDoDado dados={dados} falhou={falhou} />
-						<Atualizar depois={buscar} />
+						<IdadeDoDado dados={dados} falhou={falhou} buscadoEm={buscadoEm} atualizando={atualizando} />
+						<Atualizar rodando={atualizando} clicar={() => void atualizar()} />
 					</div>
 					<div style={{ display: "flex", alignItems: "center", gap: 24 }}>
 						<button
