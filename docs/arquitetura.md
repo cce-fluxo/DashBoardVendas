@@ -150,7 +150,7 @@ Cada tela chama a rota da sua área:
 | `/dashboard/funil`                          | `/api/dashboard`, `/api/dashboard/funil`, `/api/dashboard/comparador-fases`, `/api/dashboard/comparador-funil` |
 | `/dashboard/vendedores`, `/dashboard/metas` | `/api/dashboard`                                                                                               |
 | `/dashboard/auditoria`                      | `/api/dashboard/auditoria`, `/api/dashboard/origem` (via "Conferir um número")                                 |
-| `/tv` (painel de parede, sem seletor)       | `/api/tv`, a cada 5 min: metas e faturamento, funil e fechados do ciclo vigente, ranking da gestão e histórico, últimas entregas                       |
+| `/tv` (painel de parede, sem seletor)       | `/api/tv`, a cada 5 min: metas e faturamento (da Fluxo e por coordenação, contra a meta do ciclo de cada uma), funil e fechados do ciclo vigente, ranking da gestão e histórico, últimas entregas                       |
 | Todas                                       | `POST /api/dashboard/atualizar` (botão Atualizar)                                                              |
 
 **Tudo segue o seletor de período** do topo da tela. As exceções são o

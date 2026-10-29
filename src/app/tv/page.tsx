@@ -23,6 +23,7 @@ import { Comemoracao } from "@/components/tv/Comemoracao";
 import { EntregasTv } from "@/components/tv/EntregasTv";
 import { FechadosTv } from "@/components/tv/FechadosTv";
 import { FunilTv } from "@/components/tv/FunilTv";
+import { CoordenacoesTv } from "@/components/tv/CoordenacoesTv";
 import { MetasTv } from "@/components/tv/MetasTv";
 import { RankingTv } from "@/components/tv/RankingTv";
 import { COR, NUMERO } from "@/components/tv/formato";
@@ -35,6 +36,7 @@ type Resposta = TvData & { ultimaAtualizacao: string | null; dadoVelho: boolean 
 
 const NOMES: Record<TelaTv, string> = {
 	metas: "Metas",
+	coordenacoes: "Metas por coordenação",
 	funil: "Funil comercial",
 	"ranking-gestao": "Top vendedores",
 	"ranking-historico": "Top vendedores · histórico",
@@ -224,6 +226,7 @@ function IdadeDoDado({ dados, falhou, buscadoEm, atualizando }: { dados: Respost
 
 function Tela({ tela, dados }: { tela: TelaTv; dados: TvData }) {
 	if (tela === "metas") return <MetasTv metas={dados.metas} />;
+	if (tela === "coordenacoes") return <CoordenacoesTv dados={dados.coordenacoes} />;
 	if (tela === "funil") return <FunilTv funil={dados.funil} />;
 	if (tela === "ranking-gestao") return <RankingTv ranking={dados.rankingGestao} />;
 	if (tela === "ranking-historico") return <RankingTv ranking={dados.rankingHistorico} compacto />;

@@ -15,7 +15,8 @@ import {
 import { calcularKPIsPorVendedor, calcularKPIsVendas } from "@/lib/calculations";
 import { buscarGestao, idsDeGestao } from "@/lib/fontes/registry";
 import { MESES_DA_GESTAO, mesesDoCiclo, posicaoNaGestao } from "@/lib/fontes/calendario";
-import { metaDoPeriodo, type SelecaoPeriodo } from "@/lib/metas-periodo";
+import { metaDoPeriodo, metasPorCoordenacao, type SelecaoPeriodo } from "@/lib/metas-periodo";
+import { COORDENACOES } from "@/lib/coordenacoes";
 import {
 	gestaoAnterior,
 	gestaoAtual,
@@ -37,7 +38,7 @@ import type {
 
 // ─── Tipos da resposta ────────────────────────────────────────────
 
-export type TelaTv = "metas" | "funil" | "ranking-gestao" | "ranking-historico" | "fechados" | "entregas";
+export type TelaTv = "metas" | "coordenacoes" | "funil" | "ranking-gestao" | "ranking-historico" | "fechados" | "entregas";
 
 export interface TvEntrega {
 	projeto: string;
@@ -100,6 +101,24 @@ export interface TvMetas {
 	precisaSemana: number | null;
 	/** Soma de valor_contrato dos cards em proposta agora. */
 	propostasAbertas: number;
+}
+
+export interface TvCoordenacao {
+	coordenacao: string;
+	vendido: number;
+	/** null = a coordenação não tem meta no ciclo. */
+	metaVendas: number | null;
+	/** Realizado dos meses do ciclo até o mês atual. */
+	faturado: number;
+	/** Previsto ainda não faturado desses mesmos meses. */
+	aFaturar: number;
+	metaFaturamento: number | null;
+}
+
+export interface TvCoordenacoes {
+	ciclo: string;
+	hojeNoCiclo: number;
+	coordenacoes: TvCoordenacao[];
 }
 
 export interface TvFunil {
@@ -174,6 +193,7 @@ export interface TvData {
 	/** Só as telas com dado. Tela vazia sai do ciclo, não mostra zero. */
 	telas: TelaTv[];
 	metas: TvMetas;
+	coordenacoes: TvCoordenacoes;
 	funil: TvFunil;
 	rankingGestao: TvRanking;
 	rankingHistorico: TvRanking;
@@ -552,6 +572,48 @@ function montarEntregas(
 	};
 }
 
+// ─── Coordenações ─────────────────────────────────────────────────
+
+// Meta por coordenação só existe para o ciclo e para a gestão (metas-periodo.ts),
+// então a tela é do ciclo inteiro, não do mês.
+function montarCoordenacoes(
+	vendas: Venda[],
+	metas: MetaPeriodo[],
+	metasFaturamento: MetaPeriodo[],
+	faturamento: FaturamentoMes[],
+	gestao: PeriodoGestao,
+	ciclo: PeriodoCiclo,
+	hoje: Date,
+	hojeNoCiclo: number,
+): TvCoordenacoes {
+	const sel: SelecaoPeriodo = { gestao, tipo: "ciclo", ciclo };
+	const mv = metasPorCoordenacao(metas, sel);
+	const mf = metasPorCoordenacao(metasFaturamento, sel);
+	const doCiclo = vendasDoCiclo(vendas, gestao, ciclo).filter((v) => v.assinado);
+	const mesHoje = posicaoNaGestao(diaBrasil(hoje).slice(5, 7));
+	// Realizado de mês futuro é 0 na planilha: só conta até o mês atual.
+	const meses = new Set(mesesDoCicloDaGestao(ciclo, gestao).filter((mm) => posicaoNaGestao(mm) <= mesHoje));
+	const fat = faturamento.filter((f) => f.gestao === gestao && meses.has(f.mes.slice(5, 7)));
+
+	return {
+		ciclo: buscarGestao(gestao).ciclos.find((c) => c.id === ciclo)!.rotulo,
+		hojeNoCiclo,
+		coordenacoes: COORDENACOES.map((coord) => {
+			const linhas = fat.filter((f) => f.coordenacao === coord);
+			const faturado = linhas.reduce((s, f) => s + (f.realizado ?? 0), 0);
+			return {
+				coordenacao: coord,
+				vendido: calcularKPIsVendas(doCiclo.filter((v) => v.coordenacao === coord), null).totalVendido,
+				// metasPorCoordenacao devolve 0 para "sem meta".
+				metaVendas: mv[coord] || null,
+				faturado,
+				aFaturar: Math.max(0, linhas.reduce((s, f) => s + (f.previsto ?? 0), 0) - faturado),
+				metaFaturamento: mf[coord] || null,
+			};
+		}),
+	};
+}
+
 // ─── Montagem ─────────────────────────────────────────────────────
 
 export interface FontesTv {
@@ -586,6 +648,16 @@ export function montarTv(
 		hoje,
 	);
 
+	const coordenacoes = montarCoordenacoes(
+		vendas,
+		fontes.metas,
+		fontes.metasFaturamento,
+		fontes.faturamento,
+		gestao,
+		ciclo,
+		hoje,
+		metas.hojeNoCiclo,
+	);
 	const funil = montarFunil(cards, vendas, gestao, ciclo, hoje);
 	const rankingGestao = montarRanking(
 		vendas.filter((v) => v.gestao === gestao),
@@ -603,6 +675,7 @@ export function montarTv(
 	const telas: TelaTv[] = [];
 	// Sem faturamento a tela perde metade (e o gráfico inteiro): fica fora.
 	if (metas.meses.some((m) => m.faturado !== null || m.previsto !== null)) telas.push("metas");
+	if (coordenacoes.coordenacoes.some((c) => c.metaVendas || c.metaFaturamento)) telas.push("coordenacoes");
 	if (funil.etapas[0].quantidade > 0) telas.push("funil");
 	if (rankingGestao.vendedores.length > 0) telas.push("ranking-gestao");
 	if (rankingHistorico.vendedores.length > 0) telas.push("ranking-historico");
@@ -614,6 +687,7 @@ export function montarTv(
 		ciclo: funil.ciclo,
 		telas,
 		metas,
+		coordenacoes,
 		funil,
 		rankingGestao,
 		rankingHistorico,

@@ -193,6 +193,34 @@ describe("metas", () => {
 	});
 });
 
+describe("coordenações", () => {
+	const fontes = {
+		metas: [{ gestao: "26/27" as const, ciclo: "gambito", metaVendas: 54_000, coordenacao: "ACE" as const }],
+		metasFaturamento: [{ gestao: "26/27" as const, ciclo: "gambito", metaVendas: 84_000, coordenacao: "ACE" as const }],
+		faturamento: [
+			{ gestao: "26/27", coordenacao: "ACE", mes: "2026-10-01", previsto: 30_000, realizado: 11_000 },
+			// Mês futuro: o realizado 0 da planilha não entra, o previsto também não.
+			{ gestao: "26/27", coordenacao: "ACE", mes: "2026-11-01", previsto: 40_000, realizado: 0 },
+			{ gestao: "26/27", coordenacao: null, mes: "2026-10-01", previsto: 99_000, realizado: 99_000 },
+		],
+	};
+	const vendas = [venda({ coordenacao: "ACE", valorVendidoReal: 36_000 }), venda({ coordenacao: "QAB", valorVendidoReal: 10_000 })];
+	const tv = montarTv(vendas, [], HOJE, new Map(), fontes);
+
+	it("vendido e faturado do ciclo contra a meta de cada coordenação", () => {
+		expect(tv.telas).toContain("coordenacoes");
+		expect(tv.coordenacoes.coordenacoes.find((c) => c.coordenacao === "ACE")).toEqual({
+			coordenacao: "ACE", vendido: 36_000, metaVendas: 54_000, faturado: 11_000, aFaturar: 19_000, metaFaturamento: 84_000,
+		});
+		// Sem meta é null, não zero — a tela mostra "sem meta".
+		expect(tv.coordenacoes.coordenacoes.find((c) => c.coordenacao === "QAB")).toMatchObject({ vendido: 10_000, metaVendas: null });
+	});
+
+	it("sem meta por coordenação a tela sai do ciclo", () => {
+		expect(montarTv(vendas, [], HOJE).telas).not.toContain("coordenacoes");
+	});
+});
+
 describe("entregas", () => {
 	const p = (x: Partial<ProjetoEntrega>): ProjetoEntrega => ({
 		estado: "entregue", coordenacao: "CCE", nome_projeto: "P", gestao_venda: "25/26",
