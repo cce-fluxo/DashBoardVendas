@@ -8,8 +8,9 @@ import {
 	Users,
 } from "lucide-react";
 
-import type { TvFunil } from "@/lib/tv";
+import type { TvAlocado, TvFunil } from "@/lib/tv";
 import { NomeDoCiclo, TiraDeContexto } from "./Contexto";
+import { Rosto } from "./Rosto";
 import { COR, NUMERO, pct, reaisCurto } from "./formato";
 
 const ICONES = [Users, Filter, FileText, CircleCheck];
@@ -22,6 +23,29 @@ const CENTRO_X = 620;
 const VAO = 16;
 const TAXA_X = 1140;
 const SVG_H = 520;
+// À direita das taxas (que terminam perto de x=1270), até a margem de 64.
+const ALOCADOS_X = 1360;
+const ALOCADOS_W = 1920 - 64 - ALOCADOS_X;
+
+/** Quem está em mais cards em aberto: preenche o vazio à direita do funil. */
+function Alocados({ alocados }: { alocados: TvAlocado[] }) {
+	const altura = (SVG_H - 48) / Math.max(alocados.length, 1);
+	return (
+		<div style={{ position: "absolute", left: ALOCADOS_X, top: 0, width: ALOCADOS_W, height: SVG_H, display: "flex", flexDirection: "column" }}>
+			<p style={{ fontSize: 22, color: COR.terciario, margin: 0, height: 48 }}>mais cards em aberto</p>
+			{alocados.map((p, i) => (
+				<div key={p.nome} style={{ height: altura, display: "flex", alignItems: "center", gap: 20, borderTop: i > 0 ? `1px solid ${COR.linha}` : undefined }}>
+					<span style={{ ...NUMERO, width: 32, fontSize: 24, fontWeight: 700, color: i === 0 ? COR.marca : COR.terciario }}>{i + 1}º</span>
+					<Rosto p={p} tamanho={56} anel={i === 0 ? COR.marca : COR.linha} borda={3} />
+					<span style={{ flex: 1, minWidth: 0, fontSize: 28, fontWeight: i === 0 ? 600 : 500, color: COR.texto, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+						{p.nome}
+					</span>
+					<span style={{ ...NUMERO, fontSize: 40, fontWeight: 700, letterSpacing: "-0.03em", color: i === 0 ? COR.marca : COR.texto }}>{p.cards}</span>
+				</div>
+			))}
+		</div>
+	);
+}
 
 export function FunilTv({ funil }: { funil: TvFunil }) {
 	const n = funil.etapas.length;
@@ -133,6 +157,8 @@ export function FunilTv({ funil }: { funil: TvFunil }) {
 						</div>
 					);
 				})}
+
+				{funil.alocados.length > 0 && <Alocados alocados={funil.alocados} />}
 			</div>
 
 			<TiraDeContexto

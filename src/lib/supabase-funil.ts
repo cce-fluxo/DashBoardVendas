@@ -55,6 +55,8 @@ export interface CardComHistorico {
 	data_criacao: string | null; // ISO string — usado para filtrar gestão em calculations-funil.ts
 	coordenacoes: string[]; // array cru do banco — pode conter "N1", "OUTBOUND", etc.
 	historico: TransicaoFunil[]; // ordenado por timestamp asc
+	/** Nomes de vendedor como gravados (card_vendedor), sem resolver grafia. */
+	responsaveis: string[];
 }
 
 // ─── Query principal ──────────────────────────────────────────────
@@ -71,6 +73,7 @@ interface LinhaCard {
 	valor_contrato: number | null;
 	data_criacao: string | null;
 	funil: { etapa: string; timestamp: string }[] | null;
+	card_vendedor: { vendedor: { nome_vendedor: string } | null }[] | null;
 }
 
 // Supabase limita cada resposta a no máximo `max-rows` linhas (padrão do projeto:
@@ -99,7 +102,8 @@ export async function buscarCardsComHistorico(): Promise<CardComHistorico[]> {
       coordenacoes,
       valor_contrato,
       data_criacao,
-      funil ( etapa, timestamp )
+      funil ( etapa, timestamp ),
+      card_vendedor ( vendedor ( nome_vendedor ) )
     `,
 			)
 			// ORDENAR é parte da paginação, não enfeite. Sem ORDER BY, o Postgres
@@ -119,7 +123,9 @@ export async function buscarCardsComHistorico(): Promise<CardComHistorico[]> {
 			return [];
 		}
 
-		const lote = (data ?? []) as LinhaCard[];
+		// Sem tipos gerados, o cliente supõe `vendedor` como lista; card_vendedor →
+		// vendedor é muitos-para-um e o PostgREST devolve objeto.
+		const lote = (data ?? []) as unknown as LinhaCard[];
 		linhas.push(...lote);
 
 		// Última página: veio menos que o tamanho cheio.
@@ -173,6 +179,7 @@ export async function buscarCardsComHistorico(): Promise<CardComHistorico[]> {
 			valor_contrato: row.valor_contrato,
 			data_criacao: row.data_criacao ?? null,
 			historico,
+			responsaveis: (row.card_vendedor ?? []).flatMap((v) => (v.vendedor ? [v.vendedor.nome_vendedor] : [])),
 		};
 	});
 }

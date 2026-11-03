@@ -42,6 +42,7 @@ function card(etapas: string[], criado: string): CardComHistorico {
 		coordenacoes: ["CCE"],
 		valor_contrato: 0,
 		data_criacao: criado,
+		responsaveis: [],
 		historico: etapas.map((etapa, i) => ({
 			etapa: etapa as CardComHistorico["etapa_atual"],
 			timestamp: new Date(new Date(criado).getTime() + i * 86_400_000).toISOString(),
@@ -317,5 +318,21 @@ describe("montarTv · leads novos", () => {
 		const { leads } = montarTv([venda()], [agora, velho, semData, ontem], HOJE);
 		expect(leads.map((l) => l.id)).toEqual([ontem.pipefy_id, agora.pipefy_id]);
 		expect(leadsNovos(new Set([ontem.pipefy_id]), leads).map((l) => l.id)).toEqual([agora.pipefy_id]);
+	});
+});
+
+describe("montarTv · mais cards em aberto", () => {
+	it("conta só cards abertos de pipe ativo, resolve a grafia e ordena", () => {
+		const com = (c: CardComHistorico, responsaveis: string[], pipe_id = c.pipe_id) => ({ ...c, responsaveis, pipe_id });
+		const cards = [
+			com(card(["Oportunidade"], "2026-10-20T12:00:00.000Z"), ["Ana", "Bia"]),
+			com(card(["Oportunidade", "Follow-up"], "2026-10-20T12:00:00.000Z"), ["Ana S."]),
+			com(card(["Oportunidade", "Perdido"], "2026-10-20T12:00:00.000Z"), ["Bia"]),
+			com(card(["Oportunidade", "Venda"], "2026-10-20T12:00:00.000Z"), ["Bia"]),
+			com(card(["Oportunidade"], "2026-10-20T12:00:00.000Z"), ["Bia"], "pipe-encerrado"),
+		];
+		const resolver = (n: string) => (n === "Ana S." ? "Ana" : n);
+		const tv = montarTv([venda()], cards, HOJE, new Map(), { metas: [], metasFaturamento: [], faturamento: [], resolver });
+		expect(tv.funil.alocados.map((a) => [a.nome, a.cards])).toEqual([["Ana", 2], ["Bia", 1]]);
 	});
 });

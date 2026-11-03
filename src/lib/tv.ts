@@ -14,6 +14,7 @@ import {
 } from "@/lib/calculations-funil";
 import { calcularKPIsPorVendedor, calcularKPIsVendas } from "@/lib/calculations";
 import { buscarGestao, idsDeGestao } from "@/lib/fontes/registry";
+import { pipesDoCron } from "@/lib/fontes/pipes";
 import { MESES_DA_GESTAO, mesesDoCiclo, posicaoNaGestao } from "@/lib/fontes/calendario";
 import { metaDoPeriodo, metasPorCoordenacao, type SelecaoPeriodo } from "@/lib/metas-periodo";
 import { COORDENACOES } from "@/lib/coordenacoes";
@@ -132,6 +133,8 @@ export interface TvFunil {
 	ticketMedio: number;
 	diasAteVenda: number;
 	propostasAbertas: number;
+	/** Quem está em mais cards em aberto agora, top 6. */
+	alocados: TvAlocado[];
 }
 
 export interface TvPessoa {
@@ -139,6 +142,10 @@ export interface TvPessoa {
 	iniciais: string;
 	/** null = sem foto em pessoa.foto_url; a tela mostra as iniciais. */
 	foto: string | null;
+}
+
+export interface TvAlocado extends TvPessoa {
+	cards: number;
 }
 
 export interface TvVendedor extends TvPessoa {
@@ -318,12 +325,44 @@ function conversaoTotal(conv: KPIsFunilConversao): number | null {
 	return conv.totalBase > 0 ? passaram(conv, "Venda") / conv.totalBase : null;
 }
 
+const FORA_DO_BOARD = new Set(["Venda", "Perdido", "Pausado"]);
+const TOP_ALOCADOS = 6;
+
+/**
+ * Quem carrega mais cards em aberto AGORA (fora de Venda, Perdido e Pausado),
+ * só nos pipes ativos: o pipe encerrado tem card parado em fase aberta que
+ * ninguém vai mexer, e inflaria quem trabalhava nele. Card com dois
+ * responsáveis conta para os dois.
+ */
+function montarAlocados(
+	cards: CardComHistorico[],
+	gestao: PeriodoGestao,
+	fotos: Map<string, string>,
+	resolver: ResolverPessoa,
+): TvAlocado[] {
+	const ativos = new Set(pipesDoCron().map((p) => p.pipeId));
+	const contagem = new Map<string, number>();
+	for (const c of cards) {
+		if (FORA_DO_BOARD.has(c.etapa_atual) || !c.pipe_id || !ativos.has(c.pipe_id)) continue;
+		// Set: duas grafias da mesma pessoa no mesmo card contam uma vez.
+		for (const nome of new Set(c.responsaveis.map((n) => resolver(n, gestao)))) {
+			contagem.set(nome, (contagem.get(nome) ?? 0) + 1);
+		}
+	}
+	return [...contagem]
+		.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"))
+		.slice(0, TOP_ALOCADOS)
+		.map(([nome, n]) => ({ ...pessoaTv(nome, fotos), cards: n }));
+}
+
 function montarFunil(
 	cards: CardComHistorico[],
 	vendas: Venda[],
 	gestao: PeriodoGestao,
 	ciclo: PeriodoCiclo,
 	hoje: Date,
+	fotos: Map<string, string>,
+	resolver: ResolverPessoa,
 ): TvFunil {
 	const sel: SelecaoPeriodoFunil = { tipo: "ciclo", gestao, ciclo };
 	const { geral } = calcularKPIsFunilCompleto(cards, sel);
@@ -350,6 +389,7 @@ function montarFunil(
 		diasAteVenda: geral.tempo.tempoMedioVendaDias,
 		// O board de AGORA, não a safra do ciclo: é "o que está em proposta hoje".
 		propostasAbertas: cards.filter((c) => EM_PROPOSTA.has(c.etapa_atual)).length,
+		alocados: montarAlocados(cards, gestao, fotos, resolver),
 	};
 }
 
@@ -693,7 +733,7 @@ export function montarTv(
 		hoje,
 		metas.hojeNoCiclo,
 	);
-	const funil = montarFunil(cards, vendas, gestao, ciclo, hoje);
+	const funil = montarFunil(cards, vendas, gestao, ciclo, hoje, fotos, fontes.resolver ?? ((n) => n));
 	const rankingGestao = montarRanking(
 		vendas.filter((v) => v.gestao === gestao),
 		`acumulado da gestão ${gestao}`,

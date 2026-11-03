@@ -44,6 +44,7 @@ function card(opts: {
 		coordenacoes: opts.coordenacoes ?? ["CCE"],
 		valor_contrato: opts.valor ?? 0,
 		data_criacao: opts.dataCriacao ?? "2025-11-01T10:00:00.000Z",
+		responsaveis: [],
 		historico: opts.historico,
 	};
 }
