@@ -1,7 +1,7 @@
 # .github/workflows/cron.yml
 #
 # REDE DE SEGURANÇA. O agendamento de verdade mudou para o pg_cron do Supabase
-# (migration 0007), que dispara nos minutos :07 e :37 com precisão real.
+# (migrations 0007 e 0018), que dispara a cada 5 min com precisão real.
 #
 # Este workflow ficou como reserva, e a frequência foi escolhida com cuidado:
 # a cada 6 HORAS, deliberadamente MAIOR que o limite de frescor do Pipefy

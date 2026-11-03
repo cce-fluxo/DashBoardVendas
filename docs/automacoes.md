@@ -8,8 +8,8 @@ que falhou.
 | | Agendador principal | Agendador reserva | Botão Atualizar | Backfill |
 |---|---|---|---|---|
 | **Onde** | `pg_cron` no Supabase | GitHub Actions (`.github/workflows/cron.yml`) | Telas → `POST /api/dashboard/atualizar` | `scripts/backfill-*.ts`, na máquina de alguém |
-| **Pipefy** | `7,37 * * * *` (a cada 30 min) | `13 */6 * * *` (a cada 6 h) | sob demanda | à mão |
-| **Planilhas** | `4,19,34,49 10-23 * * *` (15 em 15 min, 07–21h Brasília) | `47 15 * * *` (12:47 Brasília) | sob demanda | à mão |
+| **Pipefy** | `4-59/5 * * * *` (a cada 5 min) | `13 */6 * * *` (a cada 6 h) | sob demanda | à mão |
+| **Planilhas** | `4-59/5 10-23 * * *` (5 em 5 min, 07–21h Brasília, junto do Pipefy) | `47 15 * * *` (12:47 Brasília) | sob demanda | à mão |
 | **Autenticação** | `CRON_SECRET` do Vault | `CRON_SECRET` do GitHub | nenhuma (trava por cooldown) | credenciais do `.env.local` |
 | **Escopo Pipefy** | pipes ativos, fases não terminais, só cards alterados | igual | igual | todos os pipes, todas as fases, reescrita forçada (~40 min) |
 | **Escopo planilhas** | gestão vigente | igual | igual | todas as gestões do registry |
@@ -20,12 +20,12 @@ horário em que os agendadores compartilhados mais atrasam.
 
 ## Agendador principal: `pg_cron` no Supabase
 
-Configurado pelas migrations `0007` a `0009`.
+Configurado pelas migrations `0007` a `0009`; horários atuais na `0018`.
 
 ```mermaid
 flowchart LR
-  J1["job sync-pipefy<br/>7,37 * * * *"] --> F["public.disparar_sync('pipefy')"]
-  J2["job sync-sheets<br/>4,19,34,49 10-23 * * *"] --> F2["public.disparar_sync('sheets')"]
+  J1["job sync-pipefy<br/>4-59/5 * * * *"] --> F["public.disparar_sync('pipefy')"]
+  J2["job sync-sheets<br/>4-59/5 10-23 * * *"] --> F2["public.disparar_sync('sheets')"]
   F --> V[("Vault<br/>app_base_url<br/>cron_secret")]
   F2 --> V
   F -- "net.http_post (assíncrono)" --> E["dominio-de-producao/api/cron/pipefy"]
@@ -62,7 +62,7 @@ select jobid, status, start_time, return_message
 
 -- pausar sem apagar / reagendar
 select cron.unschedule('sync-pipefy');
-select cron.schedule('sync-pipefy', '7,37 * * * *', $$select public.disparar_sync('pipefy')$$);
+select cron.schedule('sync-pipefy', '4-59/5 * * * *', $$select public.disparar_sync('pipefy')$$);
 ```
 
 ## Agendador reserva: GitHub Actions

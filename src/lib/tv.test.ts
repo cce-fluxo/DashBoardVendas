@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Venda } from "@/types";
 import type { CardComHistorico } from "./supabase-funil";
 import type { ProjetoEntrega } from "./supabase-vendas";
-import { chaveDoFechado, cicloVigente, fechadosNovos, montarTv, type TvFechado } from "./tv";
+import { chaveDoFechado, cicloVigente, fechadosNovos, leadsNovos, montarTv, type TvFechado } from "./tv";
 
 // 26/10/2026, meio-dia em Brasília: gestão 26/27, ciclo Gambito (out–dez).
 const HOJE = new Date("2026-10-26T15:00:00.000Z");
@@ -305,5 +305,17 @@ describe("montarTv · candidatos à comemoração", () => {
 			HOJE,
 		);
 		expect(tv.fechados.candidatos.map((c) => c.projeto).sort()).toEqual(["Hoje", "SemData"]);
+	});
+});
+
+describe("montarTv · leads novos", () => {
+	it("traz só os criados nas últimas 24 h, do mais antigo ao mais novo, e tira os já vistos", () => {
+		const velho = card(["Oportunidade"], "2026-10-24T15:00:00.000Z");
+		const ontem = card(["Oportunidade"], "2026-10-25T18:00:00.000Z");
+		const agora = card(["Oportunidade"], "2026-10-26T14:55:00.000Z");
+		const semData = { ...card(["Oportunidade"], "2026-10-26T14:00:00.000Z"), data_criacao: null };
+		const { leads } = montarTv([venda()], [agora, velho, semData, ontem], HOJE);
+		expect(leads.map((l) => l.id)).toEqual([ontem.pipefy_id, agora.pipefy_id]);
+		expect(leadsNovos(new Set([ontem.pipefy_id]), leads).map((l) => l.id)).toEqual([agora.pipefy_id]);
 	});
 });

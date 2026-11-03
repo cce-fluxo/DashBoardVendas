@@ -24,7 +24,7 @@ Depois, consulte conforme a necessidade:
 
 ```mermaid
 flowchart LR
-  PF[Pipefy] -- "a cada 30 min" --> S
+  PF[Pipefy] -- "a cada 5 min" --> S
   GS[Google Sheets] -- "1×/dia" --> S
   S["Sincronização<br/>/api/cron/*"] --> DB[(Supabase)]
   DB --> API["/api/dashboard/*"] --> UI[Telas]

@@ -3,7 +3,9 @@
 // Painel de TV do escritório. Canvas fixo de 1920×1080 escalado para a largura
 // da janela; as telas giram a cada 18 s. Desenho: Figma Make vMPbgU4OPKh16hHZZVJfXf.
 //
-// Os dados vêm de /api/tv a cada 5 min. Falha na busca MANTÉM o último dado
+// Os dados vêm de /api/tv a cada 1 min (era 5; com a faixa de lead novo, 5 min
+// de espera somavam aos 5 da sincronização). A rota é cacheada, então cada
+// busca custa uma consulta de frescor ao banco. Falha na busca MANTÉM o último dado
 // bom — a TV não pode ficar em branco por uma queda de rede — e a idade do dado
 // no rodapé mostra que ele envelheceu.
 //
@@ -12,14 +14,18 @@
 // de novo; TV sem nada guardado semeia em silêncio na primeira busca.
 // `/tv?comemorar` comemora o mais recente, para conferir o visual.
 //
+// Lead novo no Pipefy desce uma faixa no topo (FaixaDeLead.tsx), com o mesmo
+// esquema de "já vi" no localStorage. `/tv?lead` mostra o mais recente.
+//
 // Teclado: setas trocam de tela, espaço pausa, R recarrega das fontes.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Pause, Play, RefreshCw } from "lucide-react";
 
-import { chaveDoFechado, fechadosNovos, type TelaTv, type TvData, type TvFechado } from "@/lib/tv";
+import { chaveDoFechado, fechadosNovos, leadsNovos, type TelaTv, type TvData, type TvFechado, type TvLead } from "@/lib/tv";
 import { Comemoracao } from "@/components/tv/Comemoracao";
+import { FaixaDeLead } from "@/components/tv/FaixaDeLead";
 import { EntregasTv } from "@/components/tv/EntregasTv";
 import { FechadosTv } from "@/components/tv/FechadosTv";
 import { FunilTv } from "@/components/tv/FunilTv";
@@ -30,7 +36,7 @@ import { COR, NUMERO } from "@/components/tv/formato";
 
 const DURACAO_MS = 18_000;
 const FADE_MS = 400;
-const BUSCA_MS = 5 * 60_000;
+const BUSCA_MS = 60_000;
 
 type Resposta = TvData & { ultimaAtualizacao: string | null; dadoVelho: boolean };
 
@@ -84,19 +90,20 @@ function useDados(aoChegar: (r: Resposta) => void) {
 }
 
 const CHAVE_VISTOS = "tv-fechados-vistos";
+const CHAVE_LEADS_VISTOS = "tv-leads-vistos";
 
-function lerVistos(): string[] {
+function lerVistos(chave = CHAVE_VISTOS): string[] {
 	try {
-		return JSON.parse(localStorage.getItem(CHAVE_VISTOS) ?? "[]") as string[];
+		return JSON.parse(localStorage.getItem(chave) ?? "[]") as string[];
 	} catch {
 		return [];
 	}
 }
 
-function gravarVistos(vistos: Set<string>) {
+function gravarVistos(vistos: Set<string>, chave = CHAVE_VISTOS) {
 	try {
-		// Só os últimos: candidatos são os de uma semana, nunca chegam perto disso.
-		localStorage.setItem(CHAVE_VISTOS, JSON.stringify([...vistos].slice(-200)));
+		// Só os últimos: candidatos são os de uma semana (leads, de 24 h), nunca chegam perto disso.
+		localStorage.setItem(chave, JSON.stringify([...vistos].slice(-200)));
 	} catch {
 		// Sem storage, vale a memória da aba (o ref): recarregar semeia de novo.
 	}
@@ -126,6 +133,35 @@ function useComemoracao() {
 		for (const f of novos) vistos.current.add(chaveDoFechado(f));
 		gravarVistos(vistos.current);
 		setFila((atual) => [...atual, ...novos]);
+	}, []);
+
+	const proximo = useCallback(() => setFila((atual) => atual.slice(1)), []);
+	return { atual: fila[0] ?? null, aoChegar, proximo };
+}
+
+/** Fila de faixas de lead novo; leads que chegam na mesma busca saem numa faixa só. */
+function useFaixaDeLead() {
+	const vistos = useRef<Set<string> | null>(null);
+	const [fila, setFila] = useState<TvLead[][]>([]);
+
+	const aoChegar = useCallback((r: Resposta) => {
+		const leads = r.leads ?? [];
+		if (!vistos.current) {
+			vistos.current = new Set(lerVistos(CHAVE_LEADS_VISTOS));
+			const forcar = new URLSearchParams(window.location.search).has("lead");
+			if (forcar && leads.length) setFila([[leads[leads.length - 1]]]);
+			if (vistos.current.size === 0) {
+				// TV nova: o que já está aí não é novidade para ninguém.
+				for (const l of leads) vistos.current.add(l.id);
+				gravarVistos(vistos.current, CHAVE_LEADS_VISTOS);
+				return;
+			}
+		}
+		const novos = leadsNovos(vistos.current, leads);
+		if (!novos.length) return;
+		for (const l of novos) vistos.current.add(l.id);
+		gravarVistos(vistos.current, CHAVE_LEADS_VISTOS);
+		setFila((atual) => [...atual, novos]);
 	}, []);
 
 	const proximo = useCallback(() => setFila((atual) => atual.slice(1)), []);
@@ -201,8 +237,8 @@ function Relogio() {
 const horaCurta = (d: Date) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 /**
- * Hora da última busca boa da TV, que anda de 5 em 5 min — "dados de" com a
- * hora da sincronização mais atrasada (o Pipefy, de 30 em 30) parecia TV
+ * Hora da última busca boa da TV, que anda de minuto em minuto — "dados de" com a
+ * hora da sincronização mais atrasada (o Pipefy, então de 30 em 30) parecia TV
  * parada. A hora da fonte só aparece quando ela atrasou de verdade.
  */
 function IdadeDoDado({ dados, falhou, buscadoEm, atualizando }: { dados: Resposta | null; falhou: boolean; buscadoEm: Date | null; atualizando: boolean }) {
@@ -237,7 +273,14 @@ function Tela({ tela, dados }: { tela: TelaTv; dados: TvData }) {
 export default function PainelTv() {
 	const escala = useEscala();
 	const comemoracao = useComemoracao();
-	const { dados, falhou, buscadoEm, buscar } = useDados(comemoracao.aoChegar);
+	const faixa = useFaixaDeLead();
+	const { aoChegar: comemorar } = comemoracao;
+	const { aoChegar: avisarLead } = faixa;
+	const aoChegar = useCallback((r: Resposta) => {
+		comemorar(r);
+		avisarLead(r);
+	}, [comemorar, avisarLead]);
+	const { dados, falhou, buscadoEm, buscar } = useDados(aoChegar);
 	const { rodando: atualizando, atualizar } = useAtualizar(buscar);
 	const telas = dados?.telas ?? [];
 
@@ -307,7 +350,7 @@ export default function PainelTv() {
 						<Tela tela={tela} dados={dados} />
 					) : (
 						<p style={{ fontSize: 28, color: COR.terciario, padding: 64, margin: 0 }}>
-							{falhou ? "Não foi possível carregar os dados. Tentando de novo em 5 minutos." : dados ? "Sem dados para mostrar." : "Carregando…"}
+							{falhou ? "Não foi possível carregar os dados. Tentando de novo em 1 minuto." : dados ? "Sem dados para mostrar." : "Carregando…"}
 						</p>
 					)}
 				</main>
@@ -347,6 +390,8 @@ export default function PainelTv() {
 						</div>
 					</div>
 				</footer>
+
+				{faixa.atual && <FaixaDeLead key={faixa.atual[0].id} leads={faixa.atual} aoTerminar={faixa.proximo} />}
 
 				{comemoracao.atual && (
 					<Comemoracao key={chaveDoFechado(comemoracao.atual)} f={comemoracao.atual} aoTerminar={comemoracao.proximo} />

@@ -1,7 +1,7 @@
 // src/app/api/tv/route.ts
 //
 // Os dados do painel de TV (/tv), numa requisição só: a TV fica ligada o dia
-// inteiro e pergunta a cada 5 minutos. Seis rotas por ciclo seriam seis leituras
+// inteiro e pergunta a cada minuto. Seis rotas por ciclo seriam seis leituras
 // do banco por pergunta, para o mesmo período fixo.
 //
 // Sem parâmetros de propósito. A TV não tem seletor — mostra a gestão e o ciclo

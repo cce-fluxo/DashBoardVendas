@@ -1,6 +1,6 @@
 // src/app/api/cron/pipefy/route.ts
 //
-// Chamado pelo pg_cron do Supabase a cada 30 minutos (agendador principal) e
+// Chamado pelo pg_cron do Supabase a cada 5 minutos (agendador principal) e
 // pelo GitHub Actions a cada 6 horas (reserva). Ver docs/automacoes.md.
 // Protegido por CRON_SECRET para evitar chamadas não autorizadas.
 

@@ -199,6 +199,16 @@ export interface TvData {
 	rankingHistorico: TvRanking;
 	fechados: TvFechados;
 	entregas: TvEntregas;
+	/** Cards criados no Pipefy nas últimas 24 h, do mais antigo ao mais novo. */
+	leads: TvLead[];
+}
+
+export interface TvLead {
+	/** pipefy_id: estável, é a chave de "já vi". */
+	id: string;
+	nome: string;
+	coordenacao: string | null;
+	criadoEm: string;
 }
 
 // ─── Comemoração de contrato novo ─────────────────────────────────
@@ -217,6 +227,30 @@ const DIAS_PARA_COMEMORAR = 7;
  */
 export function fechadosNovos(vistos: Set<string>, candidatos: TvFechado[]): TvFechado[] {
 	return candidatos.filter((f) => !vistos.has(chaveDoFechado(f)) && f.valor > 0).reverse();
+}
+
+// ─── Faixa de lead novo ───────────────────────────────────────────
+
+const HORAS_DE_LEAD_NOVO = 24;
+
+/**
+ * Janela larga de propósito: a TV desligada de noite liga de manhã e semeia em
+ * silêncio. Quem decide o que é novo é o "já vi" da TV, não a idade.
+ */
+function montarLeads(cards: CardComHistorico[], hoje: Date): TvLead[] {
+	const desde = hoje.getTime() - HORAS_DE_LEAD_NOVO * 3_600_000;
+	return cards
+		.flatMap((c) => {
+			const t = c.data_criacao ? new Date(c.data_criacao).getTime() : NaN;
+			return t >= desde ? [{ t, lead: { id: c.pipefy_id, nome: c.nome_card, coordenacao: c.coordenacao, criadoEm: c.data_criacao! } }] : [];
+		})
+		.sort((a, b) => a.t - b.t)
+		.map((x) => x.lead);
+}
+
+/** Leads que a TV ainda não viu, na ordem de chegada. */
+export function leadsNovos(vistos: Set<string>, leads: TvLead[]): TvLead[] {
+	return leads.filter((l) => !vistos.has(l.id));
 }
 
 // ─── Calendário ───────────────────────────────────────────────────
@@ -694,5 +728,6 @@ export function montarTv(
 		rankingHistorico,
 		fechados,
 		entregas,
+		leads: montarLeads(cards, hoje),
 	};
 }

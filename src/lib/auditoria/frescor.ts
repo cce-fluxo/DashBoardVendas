@@ -28,7 +28,7 @@ function getSupabase() {
 /**
  * A partir de quantas horas sem carga a fonte é considerada velha.
  *
- * Folga generosa sobre o intervalo esperado: o Pipefy roda a cada 30 min e só
+  * Folga generosa sobre o intervalo esperado: o Pipefy roda a cada 5 min e só
  * vira alerta depois de 3 horas; as planilhas rodam uma vez por dia e só depois
  * de 30 horas. Um atraso isolado é normal e alarmar por ele ensinaria a ignorar
  * o alarme — o que importa é o agendador ter PARADO, não ter tropeçado.
@@ -48,7 +48,7 @@ export interface FrescorDaFonte {
 	 *
 	 * É o que torna fontes de cadência diferente comparáveis. A planilha
 	 * sincroniza uma vez por dia e vai estar sempre com horas de idade; o Pipefy,
-	 * a cada 30 minutos. Comparar as duas em horas absolutas faz a planilha
+	  * a cada 5 minutos. Comparar as duas em horas absolutas faz a planilha
 	 * saudável parecer sempre a mais atrasada — e esconder o Pipefy, que é quem
 	 * de fato parou.
 	 */
@@ -163,5 +163,5 @@ export async function horasDesdeOAgendador(): Promise<number | null> {
 	return (Date.now() - new Date(data[0].created).getTime()) / 3_600_000;
 }
 
-/** Limite para o agendador principal: dispara a cada 30 min, com folga larga. */
+/** Limite para o agendador principal: dispara a cada 5 min, com folga larga. */
 export const LIMITE_AGENDADOR_HORAS = 3;

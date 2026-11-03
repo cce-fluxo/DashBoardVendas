@@ -246,7 +246,7 @@ export default function DashboardPage() {
 	}, [fetchFunil]);
 
 	// Vai ao Pipefy e só então recarrega. Antes só relia o banco — que muda de
-	// 30 em 30 minutos, quando o cron passa.
+	// 5 em 5 minutos, quando o cron passa.
 	const handleRefetch = useCallback(async () => {
 		await atualizarAgora();
 		fetchFunil();

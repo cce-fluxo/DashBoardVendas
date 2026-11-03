@@ -4,7 +4,7 @@
 //
 // O BOTÃO NÃO ATUALIZAVA NADA
 //
-// Ele relia o BANCO. E o banco só muda quando o cron roda — de 30 em 30
+// Ele relia o BANCO. E o banco só muda quando o cron roda — então de 30 em 30
 // minutos. Quem movia um card no Pipefy e clicava via exatamente o mesmo
 // número, sem nada explicando por quê. O botão não estava quebrado: estava
 // respondendo a outra pergunta ("o que o banco tem agora?") em vez da que a

@@ -4,7 +4,7 @@
 //
 // POR QUE EXISTE
 //
-// Os dados só mudam quando uma sincronização roda — o cron a cada 30 minutos,
+// Os dados só mudam quando uma sincronização roda — o cron a cada 5 minutos,
 // o botão Atualizar ou um backfill. Mesmo assim, cada abertura de tela relia o
 // banco inteiro: ~3 mil cards com histórico (1,5 MB) e todas as vendas, em
 // cerca de 10 consultas. Eram 0,7–0,9 s por rota mesmo com as funções na mesma
@@ -45,7 +45,7 @@ export const TAG_DADOS = "dados-do-banco";
 /**
  * Validade máxima de uma resposta guardada, em segundos.
  *
- * Rede de segurança, não o mecanismo principal: com o cron a cada 30 minutos,
+  * Rede de segurança, não o mecanismo principal: com o cron a cada 5 minutos,
  * a invalidação chega antes. Ela vale para o que escreve no banco sem passar
  * pelo Next e para valores que dependem da data de hoje (período em andamento,
  * meses decorridos).

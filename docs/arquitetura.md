@@ -91,7 +91,7 @@ sequenceDiagram
   participant P as Pipefy GraphQL
   participant D as Postgres
 
-  C->>R: POST com Bearer CRON_SECRET (minutos :07 e :37)
+  C->>R: POST com Bearer CRON_SECRET (a cada 5 min: :04, :09, …)
   R->>R: confere o CRON_SECRET (senão 401)
   R->>D: abre registro em ingestao_execucao
   R->>P: lista fases dos pipes ativos
@@ -105,15 +105,15 @@ sequenceDiagram
   Note over C,D: pg_net não espera a resposta. Ela fica em net._http_response,<br/>visível pela view public.disparo_recente
 ```
 
-A sincronização das planilhas segue o mesmo desenho (`/api/cron/sheets`, a cada
-15 min entre 07h e 21h): lê a aba **Contratos** pelo nome dos cabeçalhos, lê a aba **Metas por
+A sincronização das planilhas segue o mesmo desenho (`/api/cron/sheets`, nos mesmos minutos do Pipefy, a cada
+5 min entre 07h e 21h): lê a aba **Contratos** pelo nome dos cabeçalhos, lê a aba **Metas por
 coordenação** como blocos, grava `projeto_vendido` e `meta` e apaga o que sumiu
 da planilha **só na gestão que acabou de ser lida** (e nunca quando a leitura
 volta vazia).
 
 | Disparo        | Quem                                                  | Frequência                                                         | Escopo                                                                 |
 | -------------- | ----------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Principal      | `pg_cron` no Supabase                                 | Pipefy `7,37 * * * *` · Planilhas `4,19,34,49 10-23 * * *` (15 em 15 min, 07–21h em Brasília) | Pipes ativos, fases não terminais, só cards alterados · Gestão vigente |
+| Principal      | `pg_cron` no Supabase                                 | Pipefy `4-59/5 * * * *` (24 h) · Planilhas `4-59/5 10-23 * * *` (07–21h em Brasília), juntos de 5 em 5 min | Pipes ativos, fases não terminais, só cards alterados · Gestão vigente |
 | Reserva        | GitHub Actions (`.github/workflows/cron.yml`)         | Pipefy a cada 6 h · Planilhas 1×/dia às 15:47 UTC                  | Igual ao principal                                                     |
 | Manual         | Botão **Atualizar** → `POST /api/dashboard/atualizar` | Sob demanda, com trava de 60 s                                     | Igual ao principal, sem segredo                                        |
 | Carga completa | `scripts/backfill-*.ts`, à mão                        | Quando precisa reparar                                             | Todos os pipes e todas as gestões                                      |
