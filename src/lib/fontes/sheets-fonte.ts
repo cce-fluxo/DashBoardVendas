@@ -9,6 +9,7 @@ import { lerTabela } from "./tabela";
 import { lerMetas, type MetaIlegivel, type MetasLidas } from "./blocos";
 import { lerGradeFaturamento, type FaturamentoLido } from "./faturamento";
 import { lerProjetos, type ProjetosLidos } from "./entregas";
+import { lerIndicacoes, type IndicacoesLidas } from "./indicacoes";
 import type { FonteEntregas, Gestao, TabelaLida } from "./tipos";
 
 function clienteSheets() {
@@ -121,6 +122,16 @@ export async function lerFaturamentoDaGestao(gestao: Gestao): Promise<Faturament
 	// A aba de metas de faturamento tem o layout da de vendas: o mesmo leitor serve.
 	const metas = lerMetas({ ...gestao, metas: fonte.metas }, grades[fonte.abas.length] ?? []);
 	return { meses, metas, ilegiveis, avisos };
+}
+
+/** Respostas do formulário de indicações (uma aba). */
+export async function lerIndicacoesDaPlanilha(fonte: { spreadsheetId: string; aba: string }): Promise<IndicacoesLidas> {
+	const resposta = await clienteSheets().spreadsheets.values.get({
+		spreadsheetId: fonte.spreadsheetId,
+		range: rangeAba(fonte.aba),
+		valueRenderOption: "FORMATTED_VALUE",
+	});
+	return lerIndicacoes(fonte.spreadsheetId, fonte.aba, (resposta.data.values as string[][]) ?? []);
 }
 
 /** As duas abas da planilha de projetos numa requisição (batchGet). */

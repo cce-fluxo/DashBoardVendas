@@ -15,6 +15,7 @@ import {
 	lerContratos,
 	lerEntregas,
 	lerFaturamentoDaGestao,
+	lerIndicacoesDaPlanilha,
 	lerMetasDaGestao,
 } from "@/lib/fontes/sheets-fonte";
 import {
@@ -26,7 +27,7 @@ import {
 	normalizarNomeVendedor,
 	type ContratoRejeitado,
 } from "@/lib/fontes/mapear";
-import { FONTE_ENTREGAS, GESTOES, gestoesDoCron, idGestaoVigente } from "@/lib/fontes/registry";
+import { FONTE_ENTREGAS, FONTE_INDICACOES, GESTOES, gestoesDoCron, idGestaoVigente } from "@/lib/fontes/registry";
 import {
 	abrirExecucao,
 	type DisparadoPor,
@@ -158,6 +159,8 @@ export interface ResultadoSync {
 	porGestao: ResultadoGestao[];
 	/** Planilha de projetos (tela de entregas da TV). Não é por gestão. */
 	entregas: ResultadoEntregas;
+	/** Formulário da campanha de indicações (tela da TV). */
+	indicacoes: ResultadoEntregas;
 	totais: {
 		contratos: number;
 		metas: number;
@@ -819,6 +822,7 @@ export async function sincronizarSheets(
 		opcoes.simular === true,
 		opcoes.disparadoPor ?? "manual",
 	);
+	const indicacoes = await sincronizarIndicacoes(opcoes.simular === true, opcoes.disparadoPor ?? "manual");
 
 	// Vendedor sem nenhum vínculo é resíduo: sobra quando um nome é corrigido na
 	// planilha ou um projeto sai. Não corrompe número — nada lê a tabela sozinha —
@@ -841,7 +845,82 @@ export async function sincronizarSheets(
 		{ contratos: 0, metas: 0, erros: 0, rejeicoes: 0, removidos: 0 },
 	);
 
-	return { porGestao, entregas, totais };
+	return { porGestao, entregas, indicacoes, totais };
+}
+
+// ─── Indicações ───────────────────────────────────────────────────
+
+/**
+ * Respostas do formulário de indicações (migration 0019). Como as entregas:
+ * fora do laço de gestões, e falha vira aviso sem derrubar o sync.
+ */
+async function sincronizarIndicacoes(simular: boolean, disparadoPor: DisparadoPor): Promise<ResultadoEntregas> {
+	const supabase = getSupabase();
+	const fonte = FONTE_INDICACOES;
+	const r: ResultadoEntregas = { execucao: null, inseridos: 0, removidos: 0, erros: 0, rejeicoes: [], avisos: [] };
+	const execucao = await abrirExecucao({ fonteTipo: "sheets", fonteRef: fonte.spreadsheetId, disparadoPor, simular });
+	r.execucao = execucao.id;
+
+	try {
+		const lidas = await lerIndicacoesDaPlanilha(fonte);
+		r.avisos.push(...lidas.avisos);
+		for (const x of lidas.rejeitadas) {
+			r.rejeicoes.push({ origemRef: x.origemRef, motivo: x.motivo });
+			execucao.rejeitar({ origemRef: x.origemRef, motivo: x.motivo, payload: x.linha });
+		}
+		const linhas = lidas.indicacoes.map((i) =>
+			comLinhagem({ carimbo: i.carimbo, indicador: i.indicador, coordenacao: i.coordenacao }, execucao, "sheets", i.origemRef),
+		);
+		const chave = (x: { carimbo: string; indicador: string }) => `${x.carimbo}|${x.indicador}`;
+
+		if (!simular && linhas.length > 0) {
+			const { error } = await supabase.from("indicacao").upsert(linhas, { onConflict: "carimbo,indicador" });
+			if (error) {
+				r.avisos.push(`indicações: gravação falhou (${error.message}).`);
+				r.erros++;
+			} else {
+				r.inseridos = linhas.length;
+			}
+		}
+
+		// Resposta apagada da planilha sai do banco. Aqui zero respostas é
+		// legítimo (campanha começando), então a trava é o cabeçalho reconhecido.
+		if (!simular && r.erros === 0 && lidas.cabecalhoOk) {
+			type Linha = { id_indicacao: number; carimbo: string; indicador: string };
+			const noBanco: Linha[] = [];
+			for (let inicio = 0; ; inicio += 1000) {
+				const { data, error } = await supabase
+					.from("indicacao")
+					.select("id_indicacao, carimbo, indicador")
+					.order("id_indicacao", { ascending: true })
+					.range(inicio, inicio + 999);
+				if (error) throw new Error(`indicacao: ${error.message}`);
+				noBanco.push(...((data ?? []) as Linha[]));
+				if ((data ?? []).length < 1000) break;
+			}
+			const orfaos = acharOrfaos(noBanco, chave, new Set(linhas.map(chave)));
+			if (orfaos.length > 0) {
+				await supabase.from("indicacao").delete().in("id_indicacao", orfaos.map((o) => o.id_indicacao));
+				r.removidos = orfaos.length;
+			}
+		}
+
+		await execucao.finalizar({
+			lidas: lidas.indicacoes.length + r.rejeicoes.length + lidas.ignoradas,
+			aceitas: r.inseridos,
+			ignoradas: lidas.ignoradas,
+			removidas: r.removidos,
+			erros: r.erros,
+		});
+	} catch (erro) {
+		await execucao.falhar(erro);
+		r.erros++;
+		r.avisos.push(
+			`indicações não lidas (${erro instanceof Error ? erro.message : String(erro)}). ` +
+				`A planilha de indicações está compartilhada com a conta de serviço?`,
+		);
+	}
+	return r;
 }
 
 // ─── Entregas ─────────────────────────────────────────────────────

@@ -166,6 +166,7 @@ adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.t
 | `tabela.ts` | Lê a aba de contratos casando colunas pelo nome do cabeçalho |
 | `blocos.ts` | Lê a aba "Metas por coordenação", que é um painel de blocos e não uma tabela |
 | `entregas.ts` | Lê as abas de projetos entregues e em execução |
+| `indicacoes.ts` | Lê as respostas do formulário da campanha de indicações |
 | `faturamento.ts` | Lê a grade mês × Previsto/Realizado da planilha de faturamento |
 | `normalizar.ts` | Normaliza cabeçalhos (acentos, espaços, `º` × `°`) |
 | `mapear.ts` | Converte o lido em linhas do banco; identidade de contrato e de meta; nomes de vendedor |
@@ -228,6 +229,7 @@ resolveu. Detalhes das tabelas: [dados.md](dados.md).
 | `0015_entregas.sql` | `projeto_entrega` |
 | `0016_equipe_da_entrega.sql` | `equipe` em `projeto_entrega` |
 | `0017_planilhas_de_15_em_15.sql` | Planilhas a cada 15 min, 07–21h, por causa da TV |
+| `0019_indicacoes.sql` | `indicacao` |
 
 ## `docs/`
 

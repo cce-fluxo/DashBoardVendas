@@ -26,7 +26,7 @@ import {
 	mesesDoCicloDaGestao,
 } from "@/lib/periodo-gestao";
 import { iniciais, type ResolverPessoa } from "@/lib/pessoas";
-import type { FaturamentoMes, ProjetoEntrega } from "@/lib/supabase-vendas";
+import type { FaturamentoMes, Indicacao, ProjetoEntrega } from "@/lib/supabase-vendas";
 import type {
 	EtapaFunil,
 	KPIsFunilConversao,
@@ -39,7 +39,18 @@ import type {
 
 // ─── Tipos da resposta ────────────────────────────────────────────
 
-export type TelaTv = "metas" | "coordenacoes" | "funil" | "ranking-gestao" | "ranking-historico" | "fechados" | "entregas";
+export type TelaTv = "metas" | "coordenacoes" | "funil" | "ranking-gestao" | "ranking-historico" | "fechados" | "entregas" | "indicacoes";
+
+export interface TvIndicador extends TvPessoa {
+	indicacoes: number;
+	coordenacao: string | null;
+}
+
+export interface TvIndicacoes {
+	total: number;
+	/** Do mais ao menos indicações; empate em ordem alfabética. */
+	ranking: TvIndicador[];
+}
 
 export interface TvEntrega {
 	projeto: string;
@@ -206,6 +217,7 @@ export interface TvData {
 	rankingHistorico: TvRanking;
 	fechados: TvFechados;
 	entregas: TvEntregas;
+	indicacoes: TvIndicacoes;
 	/** Cards criados no Pipefy nas últimas 24 h, do mais antigo ao mais novo. */
 	leads: TvLead[];
 }
@@ -646,6 +658,30 @@ function montarEntregas(
 	};
 }
 
+// ─── Indicações ───────────────────────────────────────────────────
+
+function montarIndicacoes(
+	linhas: Indicacao[],
+	gestao: PeriodoGestao,
+	fotos: Map<string, string>,
+	resolver: ResolverPessoa,
+): TvIndicacoes {
+	const porPessoa = new Map<string, TvIndicador>();
+	for (const l of linhas) {
+		// "Seu nome" é texto livre: a base de pessoas junta "joão" e "João Silva".
+		const nome = resolver(l.indicador, gestao);
+		const chave = nome.toLocaleLowerCase("pt-BR");
+		const atual = porPessoa.get(chave) ?? { ...pessoaTv(nome, fotos), indicacoes: 0, coordenacao: null };
+		atual.indicacoes += 1;
+		atual.coordenacao ??= l.coordenacao;
+		porPessoa.set(chave, atual);
+	}
+	return {
+		total: linhas.length,
+		ranking: [...porPessoa.values()].sort((a, b) => b.indicacoes - a.indicacoes || a.nome.localeCompare(b.nome, "pt-BR")),
+	};
+}
+
 // ─── Coordenações ─────────────────────────────────────────────────
 
 // Meta por coordenação só existe para o ciclo e para a gestão (metas-periodo.ts),
@@ -696,6 +732,7 @@ export interface FontesTv {
 	metasFaturamento: MetaPeriodo[];
 	faturamento: FaturamentoMes[];
 	entregas?: ProjetoEntrega[];
+	indicacoes?: Indicacao[];
 	/** Grafia → nome de exibição (src/lib/pessoas.ts), para a equipe das entregas. */
 	resolver?: ResolverPessoa;
 }
@@ -747,6 +784,8 @@ export function montarTv(
 	const fechados = montarFechados(vendas, gestao, ciclo, hoje, fotos);
 	const entregas = montarEntregas(fontes.entregas ?? [], gestao, ciclo, hoje, fotos, fontes.resolver ?? ((n) => n));
 
+	const indicacoes = montarIndicacoes(fontes.indicacoes ?? [], gestao, fotos, fontes.resolver ?? ((n) => n));
+
 	const telas: TelaTv[] = [];
 	// Sem faturamento a tela perde metade (e o gráfico inteiro): fica fora.
 	if (metas.meses.some((m) => m.faturado !== null || m.previsto !== null)) telas.push("metas");
@@ -756,6 +795,8 @@ export function montarTv(
 	if (rankingHistorico.vendedores.length > 0) telas.push("ranking-historico");
 	if (fechados.fechados.length > 0) telas.push("fechados");
 	if (entregas.entregas.length > 0) telas.push("entregas");
+	// Exceção à regra "tela vazia sai": a campanha começa do zero e o 0 é o recado.
+	telas.push("indicacoes");
 
 	return {
 		gestao,
@@ -768,6 +809,7 @@ export function montarTv(
 		rankingHistorico,
 		fechados,
 		entregas,
+		indicacoes,
 		leads: montarLeads(cards, hoje),
 	};
 }

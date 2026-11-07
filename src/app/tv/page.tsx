@@ -29,6 +29,7 @@ import { FaixaDeLead } from "@/components/tv/FaixaDeLead";
 import { EntregasTv } from "@/components/tv/EntregasTv";
 import { FechadosTv } from "@/components/tv/FechadosTv";
 import { FunilTv } from "@/components/tv/FunilTv";
+import { IndicacoesTv } from "@/components/tv/IndicacoesTv";
 import { CoordenacoesTv } from "@/components/tv/CoordenacoesTv";
 import { MetasTv } from "@/components/tv/MetasTv";
 import { RankingTv } from "@/components/tv/RankingTv";
@@ -48,6 +49,7 @@ const NOMES: Record<TelaTv, string> = {
 	"ranking-historico": "Top vendedores · histórico",
 	fechados: "Últimos fechados",
 	entregas: "Últimas entregas",
+	indicacoes: "Campanha de indicações",
 };
 
 function useEscala() {
@@ -267,6 +269,7 @@ function Tela({ tela, dados }: { tela: TelaTv; dados: TvData }) {
 	if (tela === "ranking-gestao") return <RankingTv ranking={dados.rankingGestao} />;
 	if (tela === "ranking-historico") return <RankingTv ranking={dados.rankingHistorico} compacto />;
 	if (tela === "entregas") return <EntregasTv dados={dados.entregas} />;
+	if (tela === "indicacoes") return <IndicacoesTv dados={dados.indicacoes} />;
 	return <FechadosTv dados={dados.fechados} />;
 }
 

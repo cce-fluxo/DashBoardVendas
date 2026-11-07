@@ -91,7 +91,7 @@ describe("montarTv · ranking", () => {
 	});
 
 	it("funil sem card sai do ciclo de telas", () => {
-		expect(tv.telas).toEqual(["ranking-gestao", "ranking-historico", "fechados"]);
+		expect(tv.telas).toEqual(["ranking-gestao", "ranking-historico", "fechados", "indicacoes"]);
 	});
 });
 
@@ -254,6 +254,32 @@ describe("entregas", () => {
 	it("rescindido não conta; em execução conta à parte", () => {
 		expect(tv.entregas).toMatchObject({ totalGestao: 1, totalAnterior: 1, noCiclo: 1, emExecucao: 1 });
 		expect(tv.telas).toContain("entregas");
+	});
+});
+
+describe("indicações", () => {
+	const vazio = { metas: [], metasFaturamento: [], faturamento: [] };
+	const i = (indicador: string, coordenacao: string | null = "CCE") => ({ carimbo: indicador + Math.random(), indicador, coordenacao });
+
+	it("ranking pela pessoa resolvida, empate em ordem alfabética", () => {
+		const tv = montarTv([venda()], [], HOJE, new Map(), {
+			...vazio,
+			indicacoes: [i("Bia"), i("ana", "ACE"), i("Ana Souza"), i("Caio")],
+			resolver: (n) => (n.toLowerCase() === "ana" ? "Ana Souza" : n),
+		});
+		expect(tv.indicacoes.total).toBe(4);
+		expect(tv.indicacoes.ranking.map((p) => [p.nome, p.indicacoes, p.coordenacao])).toEqual([
+			["Ana Souza", 2, "ACE"],
+			["Bia", 1, "CCE"],
+			["Caio", 1, "CCE"],
+		]);
+		expect(tv.telas).toContain("indicacoes");
+	});
+
+	it("sem indicação a tela aparece com zero", () => {
+		const tv = montarTv([venda()], [], HOJE, new Map(), vazio);
+		expect(tv.telas).toContain("indicacoes");
+		expect(tv.indicacoes).toEqual({ total: 0, ranking: [] });
 	});
 });
 

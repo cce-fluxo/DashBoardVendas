@@ -176,6 +176,15 @@ planilha) ou, sem ele, "Data de finalização". A gestão da entrega sai da DATA
 não a usa. Entrega sem data ou com data no futuro não aparece. A planilha não
 tem "no prazo" confiável para todas as entregas, e a TV não mostra.
 
+### Google Sheets — campanha de indicações
+
+`FONTE_INDICACOES` no registry: respostas do formulário "Indicações 26/27.1",
+lidas por `src/lib/fontes/indicacoes.ts` a cada sync de planilhas. Entram só o
+carimbo, o nome de quem indicou e a coordenação; os dados do contato indicado
+ficam na planilha. O nome é texto livre e passa pela base de pessoas na leitura,
+então duas grafias da mesma pessoa somam juntas. A tela "Campanha de
+indicações" da TV fica sempre no ciclo, mesmo com zero respostas.
+
 ### Pipefy — dois pipes
 
 Declarados em `src/lib/fontes/pipes.ts`.
@@ -302,6 +311,7 @@ erDiagram
 | `faturamento_mes` | Faturamento previsto e realizado por mês, da Fluxo (`coordenacao` nula) e por coordenação. Valor ilegível grava NULL e motivo em `ingestao_rejeicao` | `sync-sheets.ts` (planilha "Fluxo Faturado por Mês", 26/27 em diante) | `(gestao, coordenacao, mes)`, NULLS NOT DISTINCT |
 | `meta_faturamento` | Metas de faturamento, mesmas colunas de `meta`. Mensais (só da Fluxo) e de ciclo (Fluxo e coordenações). A de gestão não é gravada: o "total" do bloco mensal soma só os meses já definidos | `sync-sheets.ts` | `(gestao_meta, tipo_meta, periodo, coordenacao)` |
 | `projeto_entrega` | Projetos entregues (`estado = entregue`) e em execução (`em_execucao`), com gestão da venda, "Gestão - Entrega" crua (não usada), data de entrega, tamanho da equipe, `equipe` (nomes de gerente e consultores, ligados a `pessoa` na leitura) e `situacao` crua ("Rescindido" fica no banco; a TV não conta como entrega) | `sync-sheets.ts` (planilha de projetos, todas as gestões de uma vez) | `(estado, coordenacao, nome_projeto, gestao_venda)`, NULLS NOT DISTINCT |
+| `indicacao` | Uma linha por resposta do formulário de indicações: `carimbo`, `indicador` (texto livre, ligado a `pessoa` na leitura) e `coordenacao` crua. Sem dados do contato indicado | `sync-sheets.ts` (formulário de indicações) | `(carimbo, indicador)` |
 | `vendedor` | Nomes de vendedores (normalizados) | as duas sincronizações | `nome_vendedor` |
 | `projeto_vendedor`, `card_vendedor` | Quem vendeu cada contrato / é responsável por cada card | as duas sincronizações | pares de IDs |
 | `card` | Cards do Pipefy, com a fase atual | `sync-pipefy.ts` | `pipefy_id` |

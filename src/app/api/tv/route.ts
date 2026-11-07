@@ -21,6 +21,7 @@ import { buscarCardsComHistorico } from "@/lib/supabase-funil";
 import {
 	buscarEntregasDoBanco,
 	buscarFaturamentoDoBanco,
+	buscarIndicacoesDoBanco,
 	buscarMetasDoBanco,
 	buscarVendasDoBanco,
 } from "@/lib/supabase-vendas";
@@ -29,7 +30,7 @@ import { montarTv } from "@/lib/tv";
 // Uma entrada só. O ciclo vigente muda de um dia para o outro; a validade de
 // 30 min do cache cobre a virada sem chave por data.
 const montarTvCacheado = cacheado("api-tv", async () => {
-	const [vendas, cards, grafias, metas, metasFaturamento, faturamento, entregas] = await Promise.all([
+	const [vendas, cards, grafias, metas, metasFaturamento, faturamento, entregas, indicacoes] = await Promise.all([
 		buscarVendasDoBanco(),
 		buscarCardsComHistorico(),
 		buscarGrafias(),
@@ -37,8 +38,9 @@ const montarTvCacheado = cacheado("api-tv", async () => {
 		buscarMetasDoBanco("meta_faturamento"),
 		buscarFaturamentoDoBanco(),
 		buscarEntregasDoBanco(),
+		buscarIndicacoesDoBanco(),
 	]);
-	// Faturamento e entregas vazios não barram: só a tela deles sai do ciclo.
+	// Faturamento, entregas e indicações vazios não barram: só a tela deles sai do ciclo.
 	exigirLeitura({ vendas, cards });
 	const fotos = new Map(
 		grafias.flatMap((g) => (g.fotoUrl ? [[g.nomeExibicao, g.fotoUrl] as const] : [])),
@@ -48,6 +50,7 @@ const montarTvCacheado = cacheado("api-tv", async () => {
 		metasFaturamento,
 		faturamento,
 		entregas,
+		indicacoes,
 		resolver: criarResolvedor(grafias),
 	});
 });

@@ -254,6 +254,33 @@ export interface ProjetoEntrega {
 	situacao: string | null;
 }
 
+export interface Indicacao {
+	carimbo: string;
+	indicador: string;
+	coordenacao: string | null;
+}
+
+/** Respostas do formulário de indicações (migration 0019). */
+export async function buscarIndicacoesDoBanco(): Promise<Indicacao[]> {
+	const supabase = getSupabase();
+	const linhas: Indicacao[] = [];
+	for (let inicio = 0; ; inicio += PAGINA) {
+		const { data, error } = await supabase
+			.from("indicacao")
+			.select("carimbo, indicador, coordenacao")
+			.order("id_indicacao", { ascending: true })
+			.range(inicio, inicio + PAGINA - 1);
+		if (error) {
+			console.error("[SupabaseVendas] Erro ao buscar indicações:", error.message);
+			return [];
+		}
+		const lote = (data ?? []) as Indicacao[];
+		linhas.push(...lote);
+		if (lote.length < PAGINA) break;
+	}
+	return linhas;
+}
+
 /** Projetos entregues e em execução (planilha de projetos, migration 0015). */
 export async function buscarEntregasDoBanco(): Promise<ProjetoEntrega[]> {
 	const supabase = getSupabase();

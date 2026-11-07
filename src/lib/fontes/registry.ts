@@ -99,6 +99,12 @@ export const FONTE_ENTREGAS: FonteEntregas = {
 	abaEmExecucao: "Projetos - Atual",
 };
 
+/** Respostas do formulário da campanha de indicações 26/27.1 (tela da TV). */
+export const FONTE_INDICACOES = {
+	spreadsheetId: "1Nh6NxvOXTz2E3XCHmSK7rZwJQzxJ1lA1vHx0gX26rYU",
+	aba: "Respostas ao formulário 1",
+};
+
 export const GESTOES: Gestao[] = [
 	{
 		id: "23/24",
