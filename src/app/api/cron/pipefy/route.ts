@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { invalidarDados } from "@/lib/cache";
 import { sincronizarPipefy } from "@/lib/sync-pipefy";
+import { sincronizarProspeccao } from "@/lib/sync-prospeccao";
 
 /**
  * Teto de execução da função.
@@ -14,7 +15,8 @@ import { sincronizarPipefy } from "@/lib/sync-pipefy";
  * O padrão da plataforma derrubou este endpoint com 504
  * FUNCTION_INVOCATION_TIMEOUT: a varredura reescrevia os 148 cards do pipe a
  * cada rodada e levava 275s. Hoje a sincronização é incremental (só o que mudou
- * na origem) e fecha em ~9s — a folga aqui é margem, não muleta. Se voltar a
+ * na origem) e fecha em ~9s, mais ~25s da prospecção ativa (varredura completa,
+ * src/lib/sync-prospeccao.ts) — a folga aqui é margem, não muleta. Se voltar a
  * encostar no teto, a resposta é descobrir por que a rodada cresceu, não subir
  * este número.
  */
@@ -34,12 +36,24 @@ export async function POST(req: NextRequest) {
 		const resultado = await sincronizarPipefy({ disparadoPor: "cron" });
 		console.log(`[Cron Pipefy] Concluído:`, resultado);
 
+		// Prospecção ativa (competição de outbound da TV). Só no cron, não no
+		// botão Atualizar: a varredura completa leva ~25s e o clique não comporta.
+		// Falha dela não derruba o CRM COM, que já foi gravado.
+		let prospeccao: unknown;
+		try {
+			prospeccao = await sincronizarProspeccao("cron");
+		} catch (err) {
+			console.error("[Cron Pipefy] Prospecção:", err);
+			prospeccao = { erro: (err as Error)?.message };
+		}
+
 		// `ok` reflete o resultado real — ver a nota equivalente em cron/sheets.
 		// Rejeições (fase não mapeada) NÃO derrubam o ok: são problema da fonte,
 		// não da sincronização. Aparecem no corpo para ficarem visíveis.
 		return NextResponse.json({
 			ok: resultado.totais.erros === 0,
 			...resultado,
+			prospeccao,
 			timestamp: new Date().toISOString(),
 		});
 	} catch (err) {

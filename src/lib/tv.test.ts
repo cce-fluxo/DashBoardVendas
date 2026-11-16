@@ -91,7 +91,7 @@ describe("montarTv · ranking", () => {
 	});
 
 	it("funil sem card sai do ciclo de telas", () => {
-		expect(tv.telas).toEqual(["ranking-gestao", "ranking-historico", "fechados", "indicacoes"]);
+		expect(tv.telas).toEqual(["ranking-gestao", "ranking-historico", "fechados", "indicacoes", "outbound"]);
 	});
 });
 

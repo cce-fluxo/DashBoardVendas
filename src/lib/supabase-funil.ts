@@ -20,6 +20,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { EtapaFunil, Coordenacao } from "@/types";
+import type { CardProspeccao } from "@/lib/outbound";
 
 function getSupabase() {
 	return createClient(
@@ -57,6 +58,10 @@ export interface CardComHistorico {
 	historico: TransicaoFunil[]; // ordenado por timestamp asc
 	/** Nomes de vendedor como gravados (card_vendedor), sem resolver grafia. */
 	responsaveis: string[];
+	/** Para ligar ao card da prospecção ativa (src/lib/outbound.ts, migration 0020). */
+	empresa?: string | null;
+	email_hash?: string | null;
+	telefone_hash?: string | null;
 }
 
 // ─── Query principal ──────────────────────────────────────────────
@@ -72,6 +77,9 @@ interface LinhaCard {
 	coordenacoes: string[] | null;
 	valor_contrato: number | null;
 	data_criacao: string | null;
+	empresa: string | null;
+	email_hash: string | null;
+	telefone_hash: string | null;
 	funil: { etapa: string; timestamp: string }[] | null;
 	card_vendedor: { vendedor: { nome_vendedor: string } | null }[] | null;
 }
@@ -102,6 +110,9 @@ export async function buscarCardsComHistorico(): Promise<CardComHistorico[]> {
       coordenacoes,
       valor_contrato,
       data_criacao,
+      empresa,
+      email_hash,
+      telefone_hash,
       funil ( etapa, timestamp ),
       card_vendedor ( vendedor ( nome_vendedor ) )
     `,
@@ -180,6 +191,33 @@ export async function buscarCardsComHistorico(): Promise<CardComHistorico[]> {
 			data_criacao: row.data_criacao ?? null,
 			historico,
 			responsaveis: (row.card_vendedor ?? []).flatMap((v) => (v.vendedor ? [v.vendedor.nome_vendedor] : [])),
+			empresa: row.empresa,
+			email_hash: row.email_hash,
+			telefone_hash: row.telefone_hash,
 		};
 	});
+}
+
+/**
+ * Cards do pipe de prospecção ativa (migration 0020), para a competição de
+ * outbound. Erro de leitura devolve lista vazia: a tela mostra 0 × 0, o resto
+ * da TV segue.
+ */
+export async function buscarProspeccaoDoBanco(): Promise<CardProspeccao[]> {
+	const supabase = getSupabase();
+	const todas: CardProspeccao[] = [];
+	for (let inicio = 0; ; inicio += PAGINA_SUPABASE) {
+		const { data, error } = await supabase
+			.from("prospeccao_card")
+			.select("pipefy_id, empresa, email_hash, telefone_hash, sdr, data_criacao, fases")
+			.order("id_prospeccao", { ascending: true })
+			.range(inicio, inicio + PAGINA_SUPABASE - 1);
+		if (error) {
+			console.error("[Supabase] Erro ao buscar prospecção:", error.message);
+			return [];
+		}
+		todas.push(...((data ?? []) as CardProspeccao[]));
+		if ((data ?? []).length < PAGINA_SUPABASE) break;
+	}
+	return todas;
 }

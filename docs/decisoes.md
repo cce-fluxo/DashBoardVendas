@@ -40,6 +40,8 @@ topo dos arquivos também explicam a história de cada módulo.
 | **Banco guarda `coordenacoes` cru do Pipefy** | O campo é texto livre. Filtrar na ingestão perderia informação; quem decide o que é coordenação é a leitura (`ehCoordenacao`) |
 | **Base de pessoas curada à mão, resolvida na leitura** (`pessoa`, `pessoa_grafia`, `src/lib/pessoas.ts`) | Revoga a decisão anterior ("sem tabela de apelidos"), em out/2026: o ranking histórico do painel de TV soma gestões, e sem unificar a mesma pessoa aparece em dois lugares. Casamento **automático** continua proibido para apelido — o script só liga nomes completos iguais e sugere o resto para um humano. Na leitura, e não na ingestão, porque as planilhas passadas não mudam: corrigir a base vale na hora, sem reprocessar. Grafia pode valer só numa gestão, para separar dois "Rafa" |
 | **Paginar e ordenar toda leitura grande** | O limite de 1.000 linhas do Supabase truncou contagens quatro vezes. Paginar sem `ORDER BY` repetia e perdia linhas entre páginas |
+| **Prospecção ativa fora de `PIPES`** (`prospeccao_card`) | Em `card`, os ~800 cards de base entrariam no funil, na faixa de lead novo e nos alocados da TV, e as fases não são as 8 etapas canônicas |
+| **Correlação prospecção → CRM COM heurística, por hash** | Os pipes não têm conexão e o título do CRM COM é "Rascunho". Contato casa por SHA-256, como na 0019 nenhum contato de fora vai para o banco. Empresa é igualdade após normalizar: "Tecma Ltda" ≠ "Tecma" |
 | **Webhook do Pipefy removido** | Não tinha autenticação, estava desatualizado e descartava cards em silêncio. Com o `pg_cron` pontual, deixou de ser necessário |
 
 ## Agendamento

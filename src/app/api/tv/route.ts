@@ -17,7 +17,7 @@ import {
 	respostaLeituraVazia,
 } from "@/lib/cache";
 import { buscarGrafias, criarResolvedor } from "@/lib/pessoas";
-import { buscarCardsComHistorico } from "@/lib/supabase-funil";
+import { buscarCardsComHistorico, buscarProspeccaoDoBanco } from "@/lib/supabase-funil";
 import {
 	buscarEntregasDoBanco,
 	buscarFaturamentoDoBanco,
@@ -30,7 +30,7 @@ import { montarTv } from "@/lib/tv";
 // Uma entrada só. O ciclo vigente muda de um dia para o outro; a validade de
 // 30 min do cache cobre a virada sem chave por data.
 const montarTvCacheado = cacheado("api-tv", async () => {
-	const [vendas, cards, grafias, metas, metasFaturamento, faturamento, entregas, indicacoes] = await Promise.all([
+	const [vendas, cards, grafias, metas, metasFaturamento, faturamento, entregas, indicacoes, prospeccao] = await Promise.all([
 		buscarVendasDoBanco(),
 		buscarCardsComHistorico(),
 		buscarGrafias(),
@@ -39,6 +39,7 @@ const montarTvCacheado = cacheado("api-tv", async () => {
 		buscarFaturamentoDoBanco(),
 		buscarEntregasDoBanco(),
 		buscarIndicacoesDoBanco(),
+		buscarProspeccaoDoBanco(),
 	]);
 	// Faturamento, entregas e indicações vazios não barram: só a tela deles sai do ciclo.
 	exigirLeitura({ vendas, cards });
@@ -51,6 +52,7 @@ const montarTvCacheado = cacheado("api-tv", async () => {
 		faturamento,
 		entregas,
 		indicacoes,
+		prospeccao,
 		resolver: criarResolvedor(grafias),
 	});
 });

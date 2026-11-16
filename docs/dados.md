@@ -185,6 +185,34 @@ ficam na planilha. O nome é texto livre e passa pela base de pessoas na leitura
 então duas grafias da mesma pessoa somam juntas. A tela "Campanha de
 indicações" da TV fica sempre no ciclo, mesmo com zero respostas.
 
+### Pipefy — prospecção ativa (competição de outbound)
+
+O pipe "[CRM] Prospecção Ativa" (307434892) fica **fora** de `PIPES`: vai para
+`prospeccao_card` por `src/lib/sync-prospeccao.ts` (varredura completa, só no
+cron de 5 em 5 min; o botão Atualizar não o varre). Alimenta só a tela
+"Competição outbound" da TV: Time Cellbit × Time Manu, definidos em
+`src/lib/outbound.ts` pelo `nome_exibicao` da base de pessoas.
+
+Pontos cumulativos por card, pela etapa mais avançada, para o **"SDR
+responsável"** (não os `assignees`, que incluem os líderes):
+
+| Marco | Como se detecta | Pontos |
+|---|---|---|
+| Ligar | card saiu de "Base a abordar" (Encerrado direto da base não conta) | +1 |
+| Marcar diagnóstico | Reunião marcada, No-show ou Diagnóstico realizado | +2 |
+| Diagnóstico realizado | fase na prospecção, ou o card correlato do CRM COM passou por "Diagnóstico feito" | +3 |
+| Proposta | card correlato passou por "Proposta comercial feita" | +5 |
+| Venda | card correlato chegou em "Venda" | +30 |
+
+Ligar + diagnóstico + proposta = 11. Punições (faltas) ainda não têm fonte.
+
+**Correlação com o CRM COM** (`correlacionar`): os pipes não têm conexão e o
+título do CRM COM é "Rascunho". Casa por e-mail, depois telefone (últimos 9
+dígitos), depois empresa normalizada, só com card do CRM criado depois do de
+prospecção. Cada card do CRM credita um só card de prospecção (o mais avançado).
+E-mail e telefone são guardados **só como SHA-256** (`src/lib/fontes/contato.ts`),
+nos dois lados: contato de gente de fora não vai para o banco.
+
 ### Pipefy — dois pipes
 
 Declarados em `src/lib/fontes/pipes.ts`.
@@ -311,6 +339,7 @@ erDiagram
 | `faturamento_mes` | Faturamento previsto e realizado por mês, da Fluxo (`coordenacao` nula) e por coordenação. Valor ilegível grava NULL e motivo em `ingestao_rejeicao` | `sync-sheets.ts` (planilha "Fluxo Faturado por Mês", 26/27 em diante) | `(gestao, coordenacao, mes)`, NULLS NOT DISTINCT |
 | `meta_faturamento` | Metas de faturamento, mesmas colunas de `meta`. Mensais (só da Fluxo) e de ciclo (Fluxo e coordenações). A de gestão não é gravada: o "total" do bloco mensal soma só os meses já definidos | `sync-sheets.ts` | `(gestao_meta, tipo_meta, periodo, coordenacao)` |
 | `projeto_entrega` | Projetos entregues (`estado = entregue`) e em execução (`em_execucao`), com gestão da venda, "Gestão - Entrega" crua (não usada), data de entrega, tamanho da equipe, `equipe` (nomes de gerente e consultores, ligados a `pessoa` na leitura) e `situacao` crua ("Rescindido" fica no banco; a TV não conta como entrega) | `sync-sheets.ts` (planilha de projetos, todas as gestões de uma vez) | `(estado, coordenacao, nome_projeto, gestao_venda)`, NULLS NOT DISTINCT |
+| `prospeccao_card` | Um card do pipe de prospecção ativa: `sdr` como o Pipefy escreve, `empresa`, hashes de e-mail e telefone, `etapa_atual` e `fases` (jsonb com o histórico) | `sync-prospeccao.ts` | `pipefy_id` |
 | `indicacao` | Uma linha por resposta do formulário de indicações: `carimbo`, `indicador` (texto livre, ligado a `pessoa` na leitura) e `coordenacao` crua. Sem dados do contato indicado | `sync-sheets.ts` (formulário de indicações) | `(carimbo, indicador)` |
 | `vendedor` | Nomes de vendedores (normalizados) | as duas sincronizações | `nome_vendedor` |
 | `projeto_vendedor`, `card_vendedor` | Quem vendeu cada contrato / é responsável por cada card | as duas sincronizações | pares de IDs |

@@ -32,6 +32,7 @@ import { FunilTv } from "@/components/tv/FunilTv";
 import { IndicacoesTv } from "@/components/tv/IndicacoesTv";
 import { CoordenacoesTv } from "@/components/tv/CoordenacoesTv";
 import { MetasTv } from "@/components/tv/MetasTv";
+import { OutboundTv } from "@/components/tv/OutboundTv";
 import { RankingTv } from "@/components/tv/RankingTv";
 import { COR, NUMERO } from "@/components/tv/formato";
 
@@ -50,6 +51,7 @@ const NOMES: Record<TelaTv, string> = {
 	fechados: "Últimos fechados",
 	entregas: "Últimas entregas",
 	indicacoes: "Campanha de indicações",
+	outbound: "Competição outbound",
 };
 
 function useEscala() {
@@ -270,6 +272,7 @@ function Tela({ tela, dados }: { tela: TelaTv; dados: TvData }) {
 	if (tela === "ranking-historico") return <RankingTv ranking={dados.rankingHistorico} compacto />;
 	if (tela === "entregas") return <EntregasTv dados={dados.entregas} />;
 	if (tela === "indicacoes") return <IndicacoesTv dados={dados.indicacoes} />;
+	if (tela === "outbound") return <OutboundTv dados={dados.outbound} />;
 	return <FechadosTv dados={dados.fechados} />;
 }
 

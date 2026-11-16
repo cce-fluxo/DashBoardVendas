@@ -24,6 +24,7 @@ import {
 } from "@/lib/fontes/pipes";
 import { normalizarNomeVendedor } from "@/lib/fontes/mapear";
 import { apenasCoordenacoes } from "@/lib/coordenacoes";
+import { chaveEmail, chaveTelefone } from "@/lib/fontes/contato";
 import {
 	abrirExecucao,
 	type DisparadoPor,
@@ -80,7 +81,7 @@ export interface ResultadoSyncPipefy {
 
 // ─── API ──────────────────────────────────────────────────────────
 
-async function fetchPipefy<T>(query: string): Promise<T> {
+export async function fetchPipefy<T>(query: string): Promise<T> {
 	const token = process.env.PIPEFY_TOKEN;
 	if (!token) throw new Error("PIPEFY_TOKEN é obrigatório no ambiente.");
 
@@ -303,6 +304,10 @@ async function processarCard(
 				coordenacoes,
 				valor_contrato: valorContrato,
 				canal_aquisicao: extrairUm(pipe, card.fields, "canalAquisicao"),
+				// Ligação com a prospecção ativa. Contato só como hash (migration 0020).
+				empresa: extrairUm(pipe, card.fields, "empresa"),
+				email_hash: chaveEmail(extrairUm(pipe, card.fields, "emailLead")),
+				telefone_hash: chaveTelefone(extrairUm(pipe, card.fields, "telefoneLead")),
 				etapa_atual: fase.canonica,
 			},
 			{ onConflict: "pipefy_id" },

@@ -26,6 +26,7 @@ import {
 	mesesDoCicloDaGestao,
 } from "@/lib/periodo-gestao";
 import { iniciais, type ResolverPessoa } from "@/lib/pessoas";
+import { montarOutbound, type CardProspeccao, type Outbound } from "@/lib/outbound";
 import type { FaturamentoMes, Indicacao, ProjetoEntrega } from "@/lib/supabase-vendas";
 import type {
 	EtapaFunil,
@@ -39,7 +40,7 @@ import type {
 
 // ─── Tipos da resposta ────────────────────────────────────────────
 
-export type TelaTv = "metas" | "coordenacoes" | "funil" | "ranking-gestao" | "ranking-historico" | "fechados" | "entregas" | "indicacoes";
+export type TelaTv = "metas" | "coordenacoes" | "funil" | "ranking-gestao" | "ranking-historico" | "fechados" | "entregas" | "indicacoes" | "outbound";
 
 export interface TvIndicador extends TvPessoa {
 	indicacoes: number;
@@ -218,6 +219,8 @@ export interface TvData {
 	fechados: TvFechados;
 	entregas: TvEntregas;
 	indicacoes: TvIndicacoes;
+	/** Competição de outbound, Time Cellbit × Time Manu (src/lib/outbound.ts). */
+	outbound: Outbound;
 	/** Cards criados no Pipefy nas últimas 24 h, do mais antigo ao mais novo. */
 	leads: TvLead[];
 }
@@ -733,6 +736,7 @@ export interface FontesTv {
 	faturamento: FaturamentoMes[];
 	entregas?: ProjetoEntrega[];
 	indicacoes?: Indicacao[];
+	prospeccao?: CardProspeccao[];
 	/** Grafia → nome de exibição (src/lib/pessoas.ts), para a equipe das entregas. */
 	resolver?: ResolverPessoa;
 }
@@ -797,6 +801,8 @@ export function montarTv(
 	if (entregas.entregas.length > 0) telas.push("entregas");
 	// Exceção à regra "tela vazia sai": a campanha começa do zero e o 0 é o recado.
 	telas.push("indicacoes");
+	// Mesma exceção: a competição começa em 0 × 0.
+	telas.push("outbound");
 
 	return {
 		gestao,
@@ -810,6 +816,7 @@ export function montarTv(
 		fechados,
 		entregas,
 		indicacoes,
+		outbound: montarOutbound(fontes.prospeccao ?? [], cards, fontes.resolver ?? ((n) => n), fotos),
 		leads: montarLeads(cards, hoje),
 	};
 }

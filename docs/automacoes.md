@@ -34,6 +34,10 @@ flowchart LR
   E2 --> R
 ```
 
+- `/api/cron/pipefy` sincroniza o CRM COM e, em seguida, a prospecção ativa
+  (`sync-prospeccao.ts`, ~25 s de varredura completa). Falha da prospecção não
+  derruba o CRM COM; aparece em `prospeccao` no corpo da resposta e como
+  execução `pipefy`/`307434892` na Auditoria.
 - `disparar_sync(alvo)` monta a URL com o segredo `app_base_url` do Vault (só o
   domínio, sem caminho e sem barra no fim) e envia `Authorization: Bearer
   <cron_secret>`.

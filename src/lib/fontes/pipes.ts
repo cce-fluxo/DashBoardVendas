@@ -31,7 +31,11 @@ export type CampoCard =
 	| "coordenacao"
 	| "responsavel"
 	| "valorProposta"
-	| "canalAquisicao";
+	| "canalAquisicao"
+	// Para ligar o card ao da prospecção ativa (src/lib/outbound.ts).
+	| "empresa"
+	| "emailLead"
+	| "telefoneLead";
 
 export interface MapaPipe {
 	pipeId: string;
@@ -135,6 +139,9 @@ const PIPE_ATUAL: MapaPipe = {
 		responsavel: "Responsável",
 		valorProposta: "Valor da proposta",
 		canalAquisicao: "Canal de aquisição",
+		empresa: "Empresa",
+		emailLead: "E-mail do lead",
+		telefoneLead: "Telefone do lead",
 	},
 	etapasNaoInstrumentadas: [],
 	encerrado: false,

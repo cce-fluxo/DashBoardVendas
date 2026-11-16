@@ -133,6 +133,7 @@ adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.t
 | `colors.ts` | Governança de cores: identidade, alerta e volume ([decisoes.md](decisoes.md)) |
 | `utils.ts` | `cn()` para combinar classes do Tailwind |
 | `tv.ts` | Números do painel de TV sobre os cálculos acima: metas e faturamento do ciclo, funil do ciclo, rankings, últimos fechados, últimas entregas |
+| `outbound.ts` | Competição de outbound da TV: times, fases da prospecção, regra de pontos e correlação com o CRM COM |
 | `pessoas.ts` | Grafia de responsável → pessoa; lista do que falta ligar. Lê `pessoa_grafia` |
 
 ### Acesso ao banco
@@ -140,7 +141,7 @@ adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.t
 | Arquivo | Papel |
 |---|---|
 | `supabase-vendas.ts` | Lê vendas (com vendedores) e metas do banco |
-| `supabase-funil.ts` | Lê cards com o histórico de fases, paginado e ordenado |
+| `supabase-funil.ts` | Lê cards com o histórico de fases, paginado e ordenado; e a prospecção ativa |
 | `cache.ts` | Cache das respostas das rotas de leitura e invalidação ao fim das sincronizações |
 
 ### Ingestão
@@ -148,6 +149,7 @@ adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.t
 | Arquivo | Papel |
 |---|---|
 | `sync-pipefy.ts` | Sincroniza os pipes: incremental por `updated_at`, grava `card`, `funil` e vendedores, reconcilia cards que mudaram de fase ou sumiram |
+| `sync-prospeccao.ts` | Sincroniza o pipe de prospecção ativa em `prospeccao_card` (varredura completa, só no cron) |
 | `sync-sheets.ts` | Sincroniza as planilhas: contratos e metas, linhagem, remoção do que saiu da planilha (com travas) |
 | `ingestao/registro.ts` | Abre e fecha `ingestao_execucao` e grava `ingestao_rejeicao` |
 | `ingestao/cobertura.ts` | Grava em `cobertura_fonte` o que está declarado em `fontes/cobertura.ts` |
@@ -167,6 +169,7 @@ adicionar outro: `npx shadcn add <componente>`. `src/components/theme-provider.t
 | `blocos.ts` | Lê a aba "Metas por coordenação", que é um painel de blocos e não uma tabela |
 | `entregas.ts` | Lê as abas de projetos entregues e em execução |
 | `indicacoes.ts` | Lê as respostas do formulário da campanha de indicações |
+| `contato.ts` | Hash de e-mail e telefone para correlacionar pipes sem guardar o contato |
 | `faturamento.ts` | Lê a grade mês × Previsto/Realizado da planilha de faturamento |
 | `normalizar.ts` | Normaliza cabeçalhos (acentos, espaços, `º` × `°`) |
 | `mapear.ts` | Converte o lido em linhas do banco; identidade de contrato e de meta; nomes de vendedor |
@@ -230,6 +233,7 @@ resolveu. Detalhes das tabelas: [dados.md](dados.md).
 | `0016_equipe_da_entrega.sql` | `equipe` em `projeto_entrega` |
 | `0017_planilhas_de_15_em_15.sql` | Planilhas a cada 15 min, 07–21h, por causa da TV |
 | `0019_indicacoes.sql` | `indicacao` |
+| `0020_prospeccao_ativa.sql` | `prospeccao_card`; `empresa`, `email_hash`, `telefone_hash` em `card`; os 10 SDRs na base de pessoas |
 
 ## `docs/`
 
