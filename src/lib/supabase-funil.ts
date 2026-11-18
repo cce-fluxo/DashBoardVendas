@@ -209,7 +209,7 @@ export async function buscarProspeccaoDoBanco(): Promise<CardProspeccao[]> {
 	for (let inicio = 0; ; inicio += PAGINA_SUPABASE) {
 		const { data, error } = await supabase
 			.from("prospeccao_card")
-			.select("pipefy_id, empresa, email_hash, telefone_hash, sdr, data_criacao, fases")
+			.select("pipefy_id, empresa, email_hash, telefone_hash, sdr, etapa_atual, data_criacao, fases")
 			.order("id_prospeccao", { ascending: true })
 			.range(inicio, inicio + PAGINA_SUPABASE - 1);
 		if (error) {

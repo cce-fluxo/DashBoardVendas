@@ -12,6 +12,9 @@
 // conexão no Pipefy. A ligação é feita aqui (`correlacionar`), por hash de
 // e-mail, hash de telefone ou nome da empresa.
 //
+// Ponto de prospecção vale pela fase ATUAL do card (voltar de fase tira o ponto;
+// Encerrado mantém o que o histórico alcançou).
+//
 // Pontos vão para o "SDR responsável" do card, não para os `assignees`: estes
 // incluem os líderes, que não competem.
 
@@ -57,6 +60,7 @@ export interface CardProspeccao {
 	email_hash: string | null;
 	telefone_hash: string | null;
 	sdr: string | null;
+	etapa_atual?: string | null;
 	data_criacao: string | null;
 	fases: { fase: string; em: string }[];
 }
@@ -78,7 +82,11 @@ const NAO_LIGOU = new Set(["Start form", "Base a abordar"]);
 const MARCOU = new Set(["Reunião marcada (nutrição)", "No-show / remarcar", "Diagnóstico realizado"]);
 
 function nivelProspeccao(c: CardProspeccao): number {
-	const fases = c.fases.map((f) => f.fase);
+	// Card arrastado de volta (ex.: Reunião marcada → D1) vale pela fase onde está:
+	// o histórico guarda a passagem, mas o Pipefy mostra o card atrás. "Encerrado"
+	// é saída, não retrocesso: segue pelo histórico.
+	const atual = c.etapa_atual;
+	const fases = atual && atual !== "Encerrado" ? [atual] : c.fases.map((f) => f.fase);
 	if (fases.includes("Diagnóstico realizado")) return 3;
 	if (fases.some((f) => MARCOU.has(f))) return 2;
 	// "Encerrado" direto da base é descarte da lista, não ligação.

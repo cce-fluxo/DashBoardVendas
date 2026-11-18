@@ -193,7 +193,7 @@ cron de 5 em 5 min; o botão Atualizar não o varre). Alimenta só a tela
 "Competição outbound" da TV: Time Cellbit × Time Manu, definidos em
 `src/lib/outbound.ts` pelo `nome_exibicao` da base de pessoas.
 
-Pontos cumulativos por card, pela etapa mais avançada, para o **"SDR
+Pontos cumulativos por card, pela **fase atual** do card na prospecção (voltar de fase tira o ponto; "Encerrado" mantém o que o histórico alcançou) ou pela etapa mais avançada no CRM COM, para o **"SDR
 responsável"** (não os `assignees`, que incluem os líderes):
 
 | Marco | Como se detecta | Pontos |

@@ -30,6 +30,12 @@ describe("pontos do outbound", () => {
 		expect(pontosNicoly([prosp("1", { fases: fases("Reunião marcada (nutrição)") })])).toBe(3);
 	});
 
+	it("card arrastado de volta vale pela fase atual; encerrado mantém o histórico", () => {
+		const f = fases("D1 · Tentativa", "Reunião marcada (nutrição)");
+		expect(pontosNicoly([prosp("1", { fases: f, etapa_atual: "D1 · Tentativa" })])).toBe(1);
+		expect(pontosNicoly([prosp("1", { fases: f, etapa_atual: "Encerrado" })])).toBe(3);
+	});
+
 	it("ligou, diag e proposta soma 11; venda soma 41", () => {
 		const p = prosp("1", { email_hash: "e", fases: fases("D1 · Tentativa", "Reunião marcada (nutrição)", "Diagnóstico realizado") });
 		expect(pontosNicoly([p], [crm(["Diagnóstico feito", "Proposta comercial feita"], { email_hash: "e" })])).toBe(11);
